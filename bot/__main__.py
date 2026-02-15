@@ -10,8 +10,7 @@ from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.config import Config
 from bot import app
-from bot.models import db  # Added db import
-import asyncio
+from bot.models import db
 
 # Configure logging
 logging.basicConfig(
@@ -20,15 +19,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def main():
+def main():
     """Main function to start the Telegram bot."""
-    # Initialize the Telegram application
-    application = Application.builder().token(Config.BOT_TOKEN).build()
-
     # Initialize database
     with app.app_context():
         # Create tables if they don't exist
         db.create_all()
+
+    # Initialize the Telegram application
+    application = Application.builder().token(Config.BOT_TOKEN).build()
 
     # Register command handlers
     application.add_handler(CommandHandler("start", start_command))
@@ -46,12 +45,16 @@ async def main():
 
     # Start the bot
     logger.info("Starting Student AI Telegram Bot...")
-    await application.run_polling(allowed_updates=Update.ALL_TYPES)
+    
+    # Run the bot using run_polling (this handles the event loop properly)
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        main()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
         logger.error(f"Bot crashed: {e}")
+        import traceback
+        traceback.print_exc()
