@@ -9,7 +9,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Define the blueprint
 webhook_bp = Blueprint('webhook', __name__)
 
 @webhook_bp.route('/paystack/webhook', methods=['POST'])
@@ -76,7 +75,7 @@ def handle_subscription_create(event):
         return jsonify({"status": "error", "message": "No Telegram ID"}), 400
 
     # Update user subscription in database
-    with db_app.app_context():
+    with bot_app.app_context():
         user = User.query.filter_by(telegram_id=telegram_id).first()
         if not user:
             logger.error(f"User not found for Telegram ID: {telegram_id}")
@@ -92,8 +91,8 @@ def handle_subscription_create(event):
             next_payment_date=subscription.get('next_payment_date')
         )
 
-        db.session.merge(subscription_record)
-        db.session.commit()
+        bot_app.db.session.merge(subscription_record)
+        bot_app.db.session.commit()
 
     logger.info(f"Subscription created for user {telegram_id}")
     return jsonify({"status": "ok"}), 200
@@ -112,7 +111,7 @@ def handle_invoice_update(event):
         return jsonify({"status": "error", "message": "No Telegram ID"}), 400
 
     # Update subscription status
-    with db_app.app_context():
+    with bot_app.app_context():
         user = User.query.filter_by(telegram_id=telegram_id).first()
         if not user:
             logger.error(f"User not found for Telegram ID: {telegram_id}")
@@ -131,7 +130,7 @@ def handle_invoice_update(event):
         subscription.status = 'active' if invoice.get('status') == 'active' else 'inactive'
         subscription.next_payment_date = invoice.get('next_payment_date')
 
-        db.session.commit()
+        bot_app.db.session.commit()
 
     logger.info(f"Invoice updated for user {telegram_id}")
     return jsonify({"status": "ok"}), 200
@@ -150,7 +149,7 @@ def handle_subscription_cancel(event):
         return jsonify({"status": "error", "message": "No Telegram ID"}), 400
 
     # Update subscription status
-    with db_app.app_context():
+    with bot_app.app_context():
         user = User.query.filter_by(telegram_id=telegram_id).first()
         if not user:
             logger.error(f"User not found for Telegram ID: {telegram_id}")
@@ -166,9 +165,7 @@ def handle_subscription_cancel(event):
             return jsonify({"status": "error", "message": "Subscription not found"}), 404
 
         subscription_record.status = 'cancelled'
-        db.session.commit()
+        bot_app.db.session.commit()
 
     logger.info(f"Subscription cancelled for user {telegram_id}")
     return jsonify({"status": "ok"}), 200
-
-
