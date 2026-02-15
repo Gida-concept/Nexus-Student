@@ -1,0 +1,23 @@
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ContextTypes
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends a help message when the 'Help & About' button is pressed."""
+    query = update.callback_query
+    await query.answer()
+
+    help_text = (
+        "**Nexus Student AI Bot Help**\n\n"
+        "Here are the available commands and features:\n\n"
+        "🎓 **/course_advisor**: Get admission requirements for Nigerian universities.\n\n"
+        "📝 **/project**: Start a new research project and generate chapters.\n\n"
+        "📄 **/assignment**: Get help with your assignments, with or without a PDF.\n\n"
+        "🧠 **/tutor**: Ask any academic question and get a detailed explanation.\n\n"
+        "💎 **/subscribe**: View and subscribe to premium plans to unlock all features.\n\n"
+        "For any issues, please contact the administrator."
+    )
+    
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(text=help_text, reply_markup=reply_markup, parse_mode='Markdown')
