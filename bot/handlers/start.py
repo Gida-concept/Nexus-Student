@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot.models import User
+from bot.models import User, db
 from bot import app
 from bot.config import Config
 
