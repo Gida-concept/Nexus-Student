@@ -82,7 +82,7 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Define the Conversation Handler with per_* settings
+# Define the Conversation Handler (removed per_* settings)
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_plan_selection, pattern="^SELECTPLAN_")],
     states={
@@ -92,8 +92,5 @@ payment_conversation_handler = ConversationHandler(
         CommandHandler("cancel", cancel_payment),
         CallbackQueryHandler(cancel_payment, pattern="^CANCEL_PAYMENT$")
     ],
-    conversation_timeout=300,
-    per_message=True,  # Track conversations per message
-    per_chat=True,     # Track conversations per chat
-    per_user=True      # Track conversations per user
+    conversation_timeout=300
 )
