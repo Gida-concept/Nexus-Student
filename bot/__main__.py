@@ -10,7 +10,7 @@ from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.config import Config
 from bot import app
-from bot.models import db  # ADD THIS LINE
+from bot.models import db  # Added db import
 import asyncio
 
 # Configure logging
