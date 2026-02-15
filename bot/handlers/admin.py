@@ -17,12 +17,13 @@ async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         active_subscribers = Subscription.query.filter_by(status='active').count()
         active_plans = PricingPlan.query.filter_by(is_active=True).count()
         payment_status = "ENABLED" if context.bot_data.get('ENABLE_PAYMENTS', True) else "DISABLED"
+    
     keyboard = [
         [InlineKeyboardButton("👥 User Management", callback_data="ADMIN_USERS")],
         [InlineKeyboardButton("💰 Pricing Plans", callback_data="ADMIN_PRICING")],
         [InlineKeyboardButton("🔄 Payment Settings", callback_data="ADMIN_PAYMENTS")],
         [InlineKeyboardButton("📊 System Stats", callback_data="ADMIN_STATS")],
-        [InlineKeyboardButton("❌ Close", callback_data="ADMIN_CLOSE")]
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(f"🏠 **Admin Dashboard**\n\n📊 **System Overview**\nTotal Users: {total_users}\nActive Subscribers: {active_subscribers}\nActive Plans: {active_plans}\nPayment System: {payment_status}\n\nWhat would you like to manage?", reply_markup=reply_markup)
@@ -38,7 +39,7 @@ async def handle_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("No users found in the system.")
         return
     user_list = "\n".join(f"{i+1}. {user.username or 'Anonymous'} (ID: {user.telegram_id})" for i, user in enumerate(users))
-    keyboard = [[InlineKeyboardButton("🔙 Back to Dashboard", callback_data="ADMIN_DASHBOARD")]]
+    keyboard = [[InlineKeyboardButton("🔙 Back to Admin Dashboard", callback_data="ADMIN_DASHBOARD")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(f"👥 **Recent Users**\n\n{user_list}\n\nUse /admin_user [ID] to view details or manage a specific user.", reply_markup=reply_markup)
 
@@ -54,8 +55,8 @@ async def handle_admin_pricing(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     plan_list = "\n".join(f"{i+1}. {plan.name} - ₦{plan.price/100:.2f} ({plan.interval})" for i, plan in enumerate(plans))
     keyboard = [
-        [InlineKeyboardButton("🔙 Back to Dashboard", callback_data="ADMIN_DASHBOARD")],
-        [InlineKeyboardButton("💰 Sync Plans", callback_data="ADMIN_SYNC_PLANS")]
+        [InlineKeyboardButton("➕ Add New Plan", callback_data="ADMIN_ADD_PLAN")],
+        [InlineKeyboardButton("🔙 Back to Admin Dashboard", callback_data="ADMIN_DASHBOARD")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(f"💰 **Pricing Plans**\n\n{plan_list}\n\nUse /admin_plan [ID] to edit a specific plan.", reply_markup=reply_markup)
@@ -68,7 +69,7 @@ async def handle_admin_payments(update: Update, context: ContextTypes.DEFAULT_TY
     current_status = context.bot_data.get('ENABLE_PAYMENTS', True)
     keyboard = [
         [InlineKeyboardButton("🔄 Toggle Payment System", callback_data=f"TOGGLE_PAYMENTS_{not current_status}")],
-        [InlineKeyboardButton("🔙 Back to Dashboard", callback_data="ADMIN_DASHBOARD")]
+        [InlineKeyboardButton("🔙 Back to Admin Dashboard", callback_data="ADMIN_DASHBOARD")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     status_text = "ENABLED" if current_status else "DISABLED"
@@ -92,7 +93,7 @@ async def close_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("Admin menu closed.")
 
 admin_handlers = [
-    CommandHandler("admin", admin_dashboard),
+    CallbackQueryHandler(admin_dashboard, pattern="^MENU_ADMIN$"),
     CallbackQueryHandler(admin_dashboard, pattern="^ADMIN_DASHBOARD$"),
     CallbackQueryHandler(handle_admin_users, pattern="^ADMIN_USERS$"),
     CallbackQueryHandler(handle_admin_pricing, pattern="^ADMIN_PRICING$"),
