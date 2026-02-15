@@ -1,32 +1,31 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.models import User
-from bot import db_app  # Import for DB context
+from bot import app  # Import for DB context
 from bot.config import Config
-
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command and user initialization."""
-
+    
     user = update.effective_user
     telegram_id = user.id
     username = user.username
 
     # Ensure User Exists in Database
-    with db_app.app_context():
+    with app.app_context():
         db_user = User.query.filter_by(telegram_id=telegram_id).first()
-
+        
         if not db_user:
             # Create new user
             db_user = User(telegram_id=telegram_id, username=username)
             db.session.add(db_user)
             db.session.commit()
-
+            
             # If this is the admin, update the flag just in case
             if telegram_id == Config.ADMIN_USER_ID:
                 db_user.is_admin = True
                 db.session.commit()
-
+        
     # Construct the Main Menu (Custom Buttons)
     keyboard = [
         [
