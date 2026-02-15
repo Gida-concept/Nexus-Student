@@ -1,15 +1,8 @@
 import logging
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-from bot.handlers import (
-    start,
-    course_advisor,
-    project,
-    assignment,
-    tutor,
-    payment,
-    admin
-)
-from bot.handlers.__init__ import advisor_conversation_handler
+from telegram import Update
+from bot.handlers.start import start_command
+from bot.handlers.course_advisor import advisor_conversation_handler
 from bot.handlers.project import project_conversation_handler
 from bot.handlers.assignment import assignment_conversation_handler
 from bot.handlers.tutor import tutor_conversation_handler
@@ -17,6 +10,7 @@ from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.config import Config
 from bot import app
+from bot.models import db  # ADD THIS LINE
 import asyncio
 
 # Configure logging
@@ -37,7 +31,7 @@ async def main():
         db.create_all()
 
     # Register command handlers
-    application.add_handler(CommandHandler("start", start.start_command))
+    application.add_handler(CommandHandler("start", start_command))
 
     # Register conversation handlers
     application.add_handler(advisor_conversation_handler)
