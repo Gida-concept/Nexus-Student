@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.models import User
-from bot import app  # Import for DB context
+from bot import app
 from bot.config import Config
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
