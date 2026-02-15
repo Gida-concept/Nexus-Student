@@ -16,7 +16,7 @@ from bot.handlers.tutor import tutor_conversation_handler
 from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.config import Config
-from bot import db_app
+from bot import app
 import asyncio
 
 # Configure logging
@@ -32,9 +32,9 @@ async def main():
     application = Application.builder().token(Config.BOT_TOKEN).build()
 
     # Initialize database
-    with db_app.app_context():
+    with app.app_context():
         # Create tables if they don't exist
-        db_app.create_all()
+        db.create_all()
 
     # Register command handlers
     application.add_handler(CommandHandler("start", start.start_command))
@@ -49,12 +49,6 @@ async def main():
     # Register admin handlers
     for handler in admin_handlers:
         application.add_handler(handler)
-
-    # Register callback query handlers
-    application.add_handler(CallbackQueryHandler(
-        start.start_command,
-        pattern="^MENU_"
-    ))
 
     # Start the bot
     logger.info("Starting Student AI Telegram Bot...")
