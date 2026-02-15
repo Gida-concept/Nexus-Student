@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
-from bot.utils.decorators import subscription_required  # Add this decorator
+from bot.utils.decorators import subscription_required
 import logging
 import re
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 TUTOR_QUESTION, FOLLOW_UP_QUESTION = range(2)
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for the Mini Tutor feature."""
     query = update.callback_query
@@ -29,7 +29,7 @@ async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return TUTOR_QUESTION
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the user's question and get an AI response."""
     question = update.message.text.strip()
@@ -82,7 +82,7 @@ async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to that question. Please try again.", reply_markup=reply_markup)
         return TUTOR_QUESTION
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle follow-up questions."""
     query = update.callback_query
@@ -102,7 +102,7 @@ async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT
     else:
         return ConversationHandler.END
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def process_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the follow-up question and get AI response."""
     followup_question = update.message.text.strip()
@@ -175,6 +175,7 @@ async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     return ConversationHandler.END
 
+# Fixed: Removed per_* settings that were causing warnings
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
