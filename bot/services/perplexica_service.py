@@ -1,6 +1,5 @@
 import asyncio
 import requests
-import google.generativeai as genai
 from groq import Groq
 import logging
 import json
@@ -9,8 +8,7 @@ from bot.config import Config
 
 logger = logging.getLogger(__name__)
 
-# Initialize APIs with specified models
-genai.configure(api_key=Config.GEMINI_API_KEY)
+# Initialize Groq client only (no Gemini)
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 class SearchEngine:
@@ -67,10 +65,11 @@ class SearchEngine:
             return []
 
 async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
-    """Academic research pipeline using only DuckDuckGo"""
+    """Academic research pipeline using only DuckDuckGo and Groq"""
     try:
         search_results = await SearchEngine.search(query, focus_mode)
 
+        # Use only Groq for both initial response and refinement
         groq_response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -90,15 +89,23 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
             ]
         )
 
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        final_response = model.generate_content(
-            f"Refine this academic response: {groq_response.choices[0].message.content}\n"
-            "Ensure: 1. Proper academic tone 2. Clear structure 3. No hallucinations 4. Correct citations"
+        # Get the initial response
+        initial_response = groq_response.choices[0].message.content
+
+        # Use Groq again for refinement (instead of Gemini)
+        refinement_response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Refine this academic response. Ensure: 1. Proper academic tone 2. Clear structure 3. No hallucinations 4. Correct citations"
+                },
+                {"role": "user", "content": initial_response}
+            ]
         )
 
-        return final_response.text
+        return refinement_response.choices[0].message.content
 
     except Exception as e:
         logger.error(f"Search Error: {e}")
         return "Sorry, the research service is temporarily unavailable."
-
