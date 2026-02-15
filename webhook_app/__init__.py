@@ -1,7 +1,7 @@
 from flask import Flask
 from bot.config import Config
 from .routes import webhook_bp
-from bot import db_app
+from bot import app as bot_app  # Import the Flask app from bot
 import logging
 
 # Configure logging
@@ -16,15 +16,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Initialize database
-    db_app.init_app(app)
-
     # Register blueprints
     app.register_blueprint(webhook_bp, url_prefix='/')
-
-    # Create tables if they don't exist
-    with app.app_context():
-        db_app.create_all()
 
     return app
 
