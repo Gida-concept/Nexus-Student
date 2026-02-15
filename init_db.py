@@ -1,9 +1,9 @@
-from bot import db_app
+from bot import app as bot_app
 from bot.models import User, PricingPlan, Subscription, Project, ProjectChapter, Assignment, CourseRequirement
 from bot.models import db
 
 def init_database():
-    with db_app.app_context():
+    with bot_app.app_context():
         # Create all tables
         db.create_all()
         
