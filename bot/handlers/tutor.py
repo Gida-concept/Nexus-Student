@@ -42,7 +42,7 @@ async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Tutor session ended.")
     return ConversationHandler.END
 
-# Define the Conversation Handler with per_* settings
+# Define the Conversation Handler (removed per_* settings)
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
@@ -51,8 +51,5 @@ tutor_conversation_handler = ConversationHandler(
             CommandHandler("cancel", cancel_tutor)
         ]
     },
-    fallbacks=[CommandHandler("cancel", cancel_tutor)],
-    per_message=True,  # Track conversations per message
-    per_chat=True,     # Track conversations per chat
-    per_user=True      # Track conversations per user
+    fallbacks=[CommandHandler("cancel", cancel_tutor)]
 )
