@@ -1,60 +1,58 @@
-import logging
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-from telegram import Update
-from bot.handlers.start import start_command
-from bot.handlers.course_advisor import advisor_conversation_handler
-from bot.handlers.project import project_conversation_handler
-from bot.handlers.assignment import assignment_conversation_handler
-from bot.handlers.tutor import tutor_conversation_handler
-from bot.handlers.payment import payment_conversation_handler
-from bot.handlers.admin import admin_handlers
-from bot.config import Config
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+from bot.models import User, db  # Added db import
 from bot import app
-from bot.models import db
+from bot.config import Config
 
-# Configure logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-def main():
-    """Main function to start the Telegram bot."""
-    # Initialize database
-    with app.app_context():
-        # Create tables if they don't exist
-        db.create_all()
-
-    # Initialize the Telegram application
-    application = Application.builder().token(Config.BOT_TOKEN).build()
-
-    # Register command handlers
-    application.add_handler(CommandHandler("start", start_command))
-
-    # Register conversation handlers
-    application.add_handler(advisor_conversation_handler)
-    application.add_handler(project_conversation_handler)
-    application.add_handler(assignment_conversation_handler)
-    application.add_handler(tutor_conversation_handler)
-    application.add_handler(payment_conversation_handler)
-
-    # Register admin handlers
-    for handler in admin_handlers:
-        application.add_handler(handler)
-
-    # Start the bot
-    logger.info("Starting Student AI Telegram Bot...")
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles the /start command and user initialization."""
     
-    # Run the bot using run_polling (this handles the event loop properly)
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    user = update.effective_user
+    telegram_id = user.id
+    username = user.username
 
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except Exception as e:
-        logger.error(f"Bot crashed: {e}")
-        import traceback
-        traceback.print_exc()
+    # Ensure User Exists in Database
+    with app.app_context():
+        db_user = User.query.filter_by(telegram_id=telegram_id).first()
+        
+        if not db_user:
+            # Create new user
+            db_user = User(telegram_id=telegram_id, username=username)
+            db.session.add(db_user)
+            db.session.commit()
+            
+            # If this is the admin, update the flag just in case
+            if telegram_id == Config.ADMIN_USER_ID:
+                db_user.is_admin = True
+                db.session.commit()
+        
+    # Construct the Main Menu (Custom Buttons)
+    keyboard = [
+        [
+            InlineKeyboardButton("🎓 Course Advisor", callback_data="MENU_COURSE_ADVISOR"),
+            InlineKeyboardButton("💎 Premium / Subscribe", callback_data="MENU_SUBSCRIBE")
+        ],
+        [
+            InlineKeyboardButton("📝 Projects", callback_data="MENU_PROJECT"),
+            InlineKeyboardButton("📄 Assignments", callback_data="MENU_ASSIGNMENT")
+        ],
+        [
+            InlineKeyboardButton("🧠 Mini Tutor", callback_data="MENU_TUTOR"),
+            InlineKeyboardButton("ℹ️ Help & About", callback_data="MENU_HELP")
+        ]
+    ]
+
+    # Show Admin button if user is admin
+    if telegram_id == Config.ADMIN_USER_ID:
+        keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data="MENU_ADMIN")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    welcome_text = (
+        f"Hello, {user.first_name}! 👋\n\n"
+        "I am your **Student AI Assistant**. I can help you with research, "
+        "project writing, assignment solving, and course advice.\n\n"
+        "Choose an option below to get started:"
+    )
+
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
