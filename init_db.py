@@ -1,12 +1,13 @@
 from bot import db_app
 from bot.models import User, PricingPlan, Subscription, Project, ProjectChapter, Assignment, CourseRequirement
+from bot.models import db
 
 def init_database():
     with db_app.app_context():
         # Create all tables
-        db_app.create_all()
+        db.create_all()
         
-        # Add some default pricing plans (optional)
+        # Add default monthly pricing plan (only one plan)
         if not PricingPlan.query.first():
             monthly_plan = PricingPlan(
                 name="Monthly Premium",
@@ -15,16 +16,13 @@ def init_database():
                 paystack_plan_code="PLN_monthly",
                 description="Access to all premium features"
             )
-            yearly_plan = PricingPlan(
-                name="Yearly Premium",
-                price=500000,  # ₦5000 in kobo
-                interval="yearly",
-                paystack_plan_code="PLN_yearly",
-                description="Access to all premium features"
-            )
-            db_app.session.add(monthly_plan)
-            db_app.session.add(yearly_plan)
-            db_app.session.commit()
+            db.session.add(monthly_plan)
+            try:
+                db.session.commit()
+                print("Default monthly pricing plan added successfully!")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error adding default plan: {e}")
             
         print("Database initialized successfully!")
 
