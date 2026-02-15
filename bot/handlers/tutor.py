@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
 
@@ -8,12 +8,14 @@ logger = logging.getLogger(__name__)
 TUTOR_QUESTION = 1
 
 async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Entry point for the Mini Tutor feature."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("🧠 **Mini Tutor**\n\nAsk me any academic question! I can help with explanations, summaries, study tips, or quick answers to your coursework questions.\n\nWhat would you like to know?")
     return TUTOR_QUESTION
 
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process the user's question and get an AI response."""
     question = update.message.text.strip()
     if not question:
         await update.message.reply_text("❌ Please ask a valid question.")
@@ -32,6 +34,7 @@ async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_T
         return TUTOR_QUESTION
 
 async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the tutor conversation."""
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text("Tutor session ended.")
