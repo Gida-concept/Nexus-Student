@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 
 @admin_required
 async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show the admin dashboard with key metrics."""
     query = update.callback_query
     await query.answer()
-    with db_app.app_context():
+    with app.app_context():
         total_users = User.query.count()
         active_subscribers = Subscription.query.filter_by(status='active').count()
         active_plans = PricingPlan.query.filter_by(is_active=True).count()
@@ -28,9 +29,10 @@ async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @admin_required
 async def handle_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle user management commands."""
     query = update.callback_query
     await query.answer()
-    with db_app.app_context():
+    with app.app_context():
         users = User.query.order_by(User.created_at.desc()).limit(10).all()
     if not users:
         await query.edit_message_text("No users found in the system.")
@@ -42,9 +44,10 @@ async def handle_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 @admin_required
 async def handle_admin_pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle pricing plan management."""
     query = update.callback_query
     await query.answer()
-    with db_app.app_context():
+    with app.app_context():
         plans = PricingPlan.query.all()
     if not plans:
         await query.edit_message_text("No pricing plans configured.")
@@ -59,6 +62,7 @@ async def handle_admin_pricing(update: Update, context: ContextTypes.DEFAULT_TYP
 
 @admin_required
 async def handle_admin_payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle payment system settings."""
     query = update.callback_query
     await query.answer()
     current_status = context.bot_data.get('ENABLE_PAYMENTS', True)
@@ -72,6 +76,7 @@ async def handle_admin_payments(update: Update, context: ContextTypes.DEFAULT_TY
 
 @admin_required
 async def toggle_payment_system(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Toggle the payment system on/off."""
     query = update.callback_query
     await query.answer()
     new_status = query.data.split("_")[-1].lower() == "true"
@@ -81,6 +86,7 @@ async def toggle_payment_system(update: Update, context: ContextTypes.DEFAULT_TY
 
 @admin_required
 async def close_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Close the admin menu."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("Admin menu closed.")
@@ -94,5 +100,4 @@ admin_handlers = [
     CallbackQueryHandler(handle_admin_payments, pattern="^ADMIN_STATS$"),
     CallbackQueryHandler(toggle_payment_system, pattern="^TOGGLE_PAYMENTS_"),
     CallbackQueryHandler(close_admin_menu, pattern="^ADMIN_CLOSE$")
-
 ]
