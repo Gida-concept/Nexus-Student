@@ -5,14 +5,17 @@ def test_connection():
     try:
         with db_app.app_context():
             # Try to connect to the database
-            db.engine.connect()
+            connection = db.engine.connect()
             print("✅ Successfully connected to Supabase database!")
             
-            # Test by getting table names
+            # Test by getting table names (updated for SQLAlchemy 2.0+)
             from sqlalchemy import text
-            result = db.engine.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'"))
+            result = connection.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'"))
             tables = [row[0] for row in result]
             print(f"Existing tables: {tables}")
+            
+            # Close the connection
+            connection.close()
             
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
