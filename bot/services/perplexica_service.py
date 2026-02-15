@@ -1,7 +1,7 @@
 import asyncio
 import requests
 import google.generativeai as genai
-from groq import GroqClient
+from groq import Groq
 import logging
 import json
 from typing import Dict, List
@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize APIs with specified models
 genai.configure(api_key=Config.GEMINI_API_KEY)
-groq_client = GroqClient(api_key=Config.GROQ_API_KEY)
-
-# ... rest of the file remains the same ...
+groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 class SearchEngine:
     """Wrapper for academic search engines"""
@@ -114,4 +112,3 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
     except Exception as e:
         logger.error(f"Search Error: {e}")
         return "Sorry, the research service is temporarily unavailable."
-
