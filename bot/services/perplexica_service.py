@@ -101,6 +101,7 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
             ]
         )
 
+        # Use the new genai interface
         model = genai.GenerativeModel("gemini-2.5-flash")
         final_response = model.generate_content(
             f"Refine this academic response: {groq_response.choices[0].message.content}\n"
