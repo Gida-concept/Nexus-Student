@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
-from bot.models import User, PricingPlan, Subscription
+from bot.models import User, PricingPlan, Subscription, db
 from bot import app
 from bot.utils.decorators import admin_required
 import logging
