@@ -1,38 +1,22 @@
 version: '3.8'
 
 services:
-  # === Main Telegram Bot Application ===
   bot:
     build:
       context: .
       dockerfile: Dockerfile
     env_file:
       - .env
-    depends_on:
-      - perplexica
     restart: unless-stopped
-    # Using Long Polling by default, so no ports need to be exposed to host.
-    # If using Webhooks, you would need a reverse proxy (like Nginx) here.
 
-  # === Paystack Webhook Listener ===
   webhook:
     build:
       context: .
       dockerfile: Dockerfile.webhook
     ports:
-      - "5000:5000" # Exposes the webhook endpoint to the internet
+      # This maps your host's port 5000 to the container's port 5000
+      # Nginx will then proxy requests to this port.
+      - "127.0.0.1:5000:5000"
     env_file:
       - .env
     restart: unless-stopped
-
-  # === Perplexica AI Engine ===
-  perplexica:
-    image: itzcrazykns1337/perplexica:latest
-    ports:
-      - "3000:3000" # Internal communication, also accessible via localhost:3001
-    volumes:
-      - perplexica-data:/home/perplexica/data
-    restart: unless-stopped
-
-volumes:
-  perplexica-data:
