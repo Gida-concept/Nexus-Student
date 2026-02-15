@@ -82,7 +82,6 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Define the Conversation Handler (removed per_* settings)
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_plan_selection, pattern="^SELECTPLAN_")],
     states={
