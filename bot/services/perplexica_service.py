@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 genai.configure(api_key=Config.GEMINI_API_KEY)
 groq_client = GroqClient(api_key=Config.GROQ_API_KEY)
 
+# ... rest of the file remains the same ...
+
 class SearchEngine:
     """Wrapper for academic search engines"""
     @staticmethod
@@ -112,3 +114,4 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
     except Exception as e:
         logger.error(f"Search Error: {e}")
         return "Sorry, the research service is temporarily unavailable."
+
