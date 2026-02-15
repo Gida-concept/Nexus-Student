@@ -77,4 +77,137 @@ async def confirm_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     project_summary = (
-        f"📌 **Project 
+        f"📌 **Project Summary**\n\n"
+        f"Title: {context.user_data.get('project_title', 'Not specified')}\n"
+        f"Topic: {context.user_data.get('project_topic', 'Not specified')}\n"
+        f"Length: {page_count} pages ({page_count * 750} words)\n\n"
+        "Is this correct?"
+    )
+
+    if update.message:
+        await update.message.reply_text(project_summary, reply_markup=reply_markup)
+    else:
+        await update.callback_query.edit_message_text(project_summary, reply_markup=reply_markup)
+
+    return CONFIRM_PROJECT
+
+async def create_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Create the project in the database."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "CANCEL":
+        await query.edit_message_text("Project creation cancelled.")
+        return ConversationHandler.END
+
+    # Create project record
+    with app.app_context():
+        project = Project(
+            user_id=update.effective_user.id,
+            title=context.user_data['project_title'],
+            topic=context.user_data['project_topic'],
+            page_count=context.user_data['page_count'],
+            word_count=context.user_data['page_count'] * 750
+        )
+        db.session.add(project)
+        db.session.commit()
+
+        # Store project ID in context
+        context.user_data['project_id'] = project.id
+
+    await query.edit_message_text(
+        "✅ Project created successfully!\n\n"
+        "Now let's generate the first chapter. What should the chapter be about?"
+    )
+    return GENERATING_CHAPTER
+
+async def generate_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate a chapter using the new search pipeline."""
+    chapter_title = update.message.text.strip()
+    project_id = context.user_data.get('project_id')
+
+    if not project_id:
+        await update.message.reply_text("⚠️ Project session expired. Please start over.")
+        return ConversationHandler.END
+
+    # Show "generating" status
+    status_msg = await update.message.reply_text("🔮 Generating chapter content with academic research...")
+
+    # Build prompt for AI
+    prompt = (
+        f"Generate a detailed academic chapter for a project titled '{context.user_data['project_title']}'. "
+        f"The chapter should be titled '{chapter_title}' and cover the following topic: "
+        f"'{context.user_data['project_topic']}'. "
+        f"Write in a formal academic style with proper citations where necessary. "
+        f"Maintain a length appropriate for a {context.user_data['page_count']}-page project. "
+        f"Use the following academic sources for reference:"
+    )
+
+    try:
+        # Query the new search pipeline
+        chapter_content = await query_perplexica(prompt, focus_mode="academic")
+
+        # Save to database
+        with app.app_context():
+            chapter = ProjectChapter(
+                project_id=project_id,
+                title=chapter_title,
+                content=chapter_content
+            )
+            db.session.add(chapter)
+            db.session.commit()
+
+        # Show success
+        await status_msg.delete()
+        await update.message.reply_text(
+            f"✅ Chapter '{chapter_title}' generated successfully!\n\n"
+            f"Here's a preview of the first 500 characters:\n\n"
+            f"{chapter_content[:500]}...\n\n"
+            f"Would you like to generate another chapter?"
+        )
+
+        # Reset for next chapter
+        context.user_data['project_id'] = project_id
+        return GENERATING_CHAPTER
+
+    except Exception as e:
+        logger.error(f"Chapter generation failed: {e}")
+        await status_msg.delete()
+        await update.message.reply_text("⚠️ Failed to generate chapter. Please try again.")
+        return ConversationHandler.END
+
+async def cancel_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the project creation flow."""
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text("Project creation cancelled.")
+    else:
+        await update.message.reply_text("Project creation cancelled.")
+
+    context.user_data.clear()
+    return ConversationHandler.END
+
+# Define the Conversation Handler with per_* settings
+project_conversation_handler = ConversationHandler(
+    entry_points=[CallbackQueryHandler(start_project, pattern="^MENU_PROJECT$")],
+    states={
+        PROJECT_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_title)],
+        PROJECT_TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_topic)],
+        PROJECT_PAGE_COUNT: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_page_count),
+            CallbackQueryHandler(get_project_page_count, pattern="^[0-9]+$")
+        ],
+        CONFIRM_PROJECT: [
+            CallbackQueryHandler(create_project, pattern="^CONFIRM$"),
+            CallbackQueryHandler(cancel_project, pattern="^CANCEL$")
+        ],
+        GENERATING_CHAPTER: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, generate_chapter),
+            CommandHandler("cancel", cancel_project)
+        ]
+    },
+    fallbacks=[CommandHandler("cancel", cancel_project)],
+    per_message=True,  # Track conversations per message
+    per_chat=True,     # Track conversations per chat
+    per_user=True      # Track conversations per user
+)
