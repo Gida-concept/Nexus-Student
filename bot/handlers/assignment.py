@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.models import Assignment
 from bot.services.file_service import process_uploaded_pdf
 from bot.services.perplexica_service import query_perplexica
@@ -12,12 +12,14 @@ logger = logging.getLogger(__name__)
 ASSIGNMENT_TOPIC, ASSIGNMENT_FILE, PROCESSING_ASSIGNMENT = range(3)
 
 async def start_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Entry point for assignment assistance flow."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("📄 **Assignment Helper**\n\nI can help you with your assignments! Please describe the assignment topic:")
     return ASSIGNMENT_TOPIC
 
 async def get_assignment_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Capture assignment topic."""
     context.user_data['assignment_topic'] = update.message.text.strip()
     keyboard = [
         [InlineKeyboardButton("📁 Upload PDF", callback_data="UPLOAD_PDF")],
@@ -29,6 +31,7 @@ async def get_assignment_topic(update: Update, context: ContextTypes.DEFAULT_TYP
     return ASSIGNMENT_FILE
 
 async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle PDF file upload."""
     query = update.callback_query
     await query.answer()
     if query.data == "CANCEL":
@@ -41,6 +44,7 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return ASSIGNMENT_FILE
 
 async def process_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process the assignment with or without PDF."""
     if update.message and update.message.document:
         file = await update.message.document.get_file()
         file_path = f"/tmp/{file.file_id}.pdf"
@@ -59,7 +63,7 @@ async def process_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reference_text = context.user_data.get('extracted_text', '')
         prompt = f"Analyze the following assignment topic: '{topic}'. Use this reference material if provided:\n\n{reference_text}\n\nProvide a detailed analysis, key points, and suggestions for completing the assignment. Format your response clearly with headings and bullet points."
         ai_response = await query_perplexica(prompt, focus_mode="academic")
-        with db_app.app_context():
+        with app.app_context():
             assignment = Assignment(
                 user_id=update.effective_user.id,
                 topic=topic,
@@ -80,6 +84,7 @@ async def process_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
 async def cancel_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the assignment flow."""
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text("Assignment process cancelled.")
@@ -100,5 +105,4 @@ assignment_conversation_handler = ConversationHandler(
         PROCESSING_ASSIGNMENT: [MessageHandler(filters.ALL, process_assignment)]
     },
     fallbacks=[CommandHandler("cancel", cancel_assignment)]
-
 )
