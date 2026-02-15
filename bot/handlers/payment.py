@@ -101,10 +101,9 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
     await update.message.reply_text("⏳ Generating secure payment link...")
 
     # Generate payment link using our pricing from database
-    # Note: We're now passing the amount directly instead of plan_code
     payment_url = get_payment_link(
         telegram_id=telegram_id,
-        amount=plan.price,  # Pass amount directly in kobo
+        amount=plan.price,
         user_email=email,
         plan_name=plan.name
     )
@@ -145,6 +144,7 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+# Fixed: Make sure this is properly exported
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(show_subscription_plans, pattern="^MENU_SUBSCRIBE$")],
     states={
