@@ -42,7 +42,6 @@ async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Tutor session ended.")
     return ConversationHandler.END
 
-# Define the Conversation Handler (removed per_* settings)
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
