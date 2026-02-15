@@ -171,6 +171,7 @@ async def cancel_advisor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Course advisor cancelled.")
     return ConversationHandler.END
 
+# Fixed: Removed per_* settings that were causing warnings
 advisor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(advisor_start, pattern="^MENU_COURSE_ADVISOR$")],
     states={
