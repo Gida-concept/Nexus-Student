@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
-from bot.models import Assignment
+from bot.models import Assignment, db
 from bot.services.file_service import process_uploaded_pdf
 from bot.services.perplexica_service import query_perplexica
 from bot import app
@@ -93,6 +93,7 @@ async def cancel_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+# Define the Conversation Handler with per_* settings
 assignment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_assignment, pattern="^MENU_ASSIGNMENT$")],
     states={
@@ -104,5 +105,8 @@ assignment_conversation_handler = ConversationHandler(
         ],
         PROCESSING_ASSIGNMENT: [MessageHandler(filters.ALL, process_assignment)]
     },
-    fallbacks=[CommandHandler("cancel", cancel_assignment)]
+    fallbacks=[CommandHandler("cancel", cancel_assignment)],
+    per_message=True,  # Track conversations per message
+    per_chat=True,     # Track conversations per chat
+    per_user=True      # Track conversations per user
 )
