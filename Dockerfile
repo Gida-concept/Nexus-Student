@@ -3,10 +3,7 @@ FROM python:3.10-slim
 # Install system dependencies required by PyMuPDF (fitz)
 # libgl1-mesa-glx is often required for image processing in PDFs
 # libglib2.0-0 is a common dependency for fitz
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -24,4 +21,5 @@ COPY --chown=appuser . .
 USER appuser
 
 # Run the bot application using the module name (executes bot/__main__.py)
+
 CMD ["python", "-m", "bot"]
