@@ -15,4 +15,4 @@ PyMuPDF
 
 # AI Services
 google-generativeai
-groq-sdk
+groq
