@@ -5,28 +5,21 @@ from bot import app
 from bot.config import Config
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command and user initialization."""
+    """Handles the /start command and the 'Back to Menu' button."""
     
     user = update.effective_user
     telegram_id = user.id
     username = user.username
 
-    # Ensure User Exists in Database
     with app.app_context():
         db_user = User.query.filter_by(telegram_id=telegram_id).first()
-        
         if not db_user:
-            # Create new user
             db_user = User(telegram_id=telegram_id, username=username)
             db.session.add(db_user)
-            db.session.commit()
-            
-            # If this is the admin, update the flag just in case
             if telegram_id == Config.ADMIN_USER_ID:
                 db_user.is_admin = True
-                db.session.commit()
+            db.session.commit()
         
-    # Construct the Main Menu (Custom Buttons)
     keyboard = [
         [
             InlineKeyboardButton("🎓 Course Advisor", callback_data="MENU_COURSE_ADVISOR"),
@@ -42,7 +35,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    # Show Admin button if user is admin
     if telegram_id == Config.ADMIN_USER_ID:
         keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data="MENU_ADMIN")])
 
@@ -55,4 +47,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Choose an option below to get started:"
     )
 
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+    # Differentiate between a /start command and a 'Back' button press
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
