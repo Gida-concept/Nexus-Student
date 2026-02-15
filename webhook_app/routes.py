@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from bot.config import Config
 from bot.models import User, Subscription
-from bot import db_app
+from bot import app as bot_app
 from paystackapi.transaction import Transaction
 import hmac
 import hashlib
@@ -170,4 +170,5 @@ def handle_subscription_cancel(event):
 
     logger.info(f"Subscription cancelled for user {telegram_id}")
     return jsonify({"status": "ok"}), 200
+
 
