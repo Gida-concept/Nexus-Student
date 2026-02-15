@@ -42,5 +42,16 @@ class Config:
         ]
 
         for var in required_vars:
-            if not getattr(cls, var):
+            value = getattr(cls, var)
+            if not value:
                 raise ValueError(f"Missing required configuration: {var}")
+            print(f"✓ {var}: {'*' * 10}")  # Show vars are loaded (masked)
+
+# Validate configuration when imported
+try:
+    Config.validate()
+    print("✅ All configuration validated successfully!")
+except ValueError as e:
+    print(f"❌ Configuration Error: {e}")
+    import sys
+    sys.exit(1)
