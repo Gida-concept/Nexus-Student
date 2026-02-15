@@ -25,3 +25,81 @@ class User(db.Model):
             status='active'
         ).first()
         return bool(active_sub)
+
+class PricingPlan(db.Model):
+    __tablename__ = 'pricing_plans'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+    interval = db.Column(db.String(20), nullable=False)
+    paystack_plan_code = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Subscription(db.Model):
+    __tablename__ = 'subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    plan_id = db.Column(db.Integer, db.ForeignKey('pricing_plans.id'), nullable=False)
+    
+    # Paystack Details
+    paystack_subscription_code = db.Column(db.String(100), unique=True, nullable=True)
+    paystack_customer_code = db.Column(db.String(100), nullable=True)
+    paystack_email = db.Column(db.String(100), nullable=True)
+    
+    status = db.Column(db.String(20), default='inactive')
+    next_payment_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Project(db.Model):
+    __tablename__ = 'projects'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    title = db.Column(db.String(200), nullable=False)
+    topic = db.Column(db.Text, nullable=False)
+    page_count = db.Column(db.Integer, default=5)
+    word_count = db.Column(db.Integer, default=3750)
+    
+    status = db.Column(db.String(20), default='draft')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    chapters = db.relationship('ProjectChapter', backref='project', lazy=True, cascade="all, delete-orphan")
+
+class ProjectChapter(db.Model):
+    __tablename__ = 'project_chapters'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Assignment(db.Model):
+    __tablename__ = 'assignments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    topic = db.Column(db.Text, nullable=False)
+    file_url = db.Column(db.String(500), nullable=True)
+    extracted_text = db.Column(db.Text, nullable=True)
+    
+    ai_response = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CourseRequirement(db.Model):
+    __tablename__ = 'course_requirements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_name = db.Column(db.String(100), unique=True, nullable=False)
+    advice = db.Column(db.Text, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
