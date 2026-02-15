@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
-from bot.models import PricingPlan
+from bot.models import PricingPlan, db
 from bot.services.payment_service import get_payment_link
 from bot import app
 from bot.config import Config
@@ -82,6 +82,7 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+# Define the Conversation Handler with per_* settings
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_plan_selection, pattern="^SELECTPLAN_")],
     states={
@@ -91,5 +92,8 @@ payment_conversation_handler = ConversationHandler(
         CommandHandler("cancel", cancel_payment),
         CallbackQueryHandler(cancel_payment, pattern="^CANCEL_PAYMENT$")
     ],
-    conversation_timeout=300
+    conversation_timeout=300,
+    per_message=True,  # Track conversations per message
+    per_chat=True,     # Track conversations per chat
+    per_user=True      # Track conversations per user
 )
