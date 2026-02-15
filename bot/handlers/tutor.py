@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
@@ -11,6 +11,10 @@ async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for the Mini Tutor feature."""
     query = update.callback_query
     await query.answer()
+
+    # Clear data from any previous conversation
+    context.user_data.clear()
+    
     await query.edit_message_text("🧠 **Mini Tutor**\n\nAsk me any academic question! I can help with explanations, summaries, study tips, or quick answers to your coursework questions.\n\nWhat would you like to know?")
     return TUTOR_QUESTION
 
