@@ -1,41 +1,40 @@
 from paystackapi.transaction import Transaction
-from paystackapi.plan import Plan as PaystackPlan
 from bot.config import Config
 import logging
 
 logger = logging.getLogger(__name__)
 
-
-def get_payment_link(telegram_id: int, plan_code: str, user_email: str) -> str:
+def get_payment_link(telegram_id: int, amount: int, user_email: str, plan_name: str) -> str:
     """
-    Generates a unique Paystack payment link for a user to subscribe to a specific plan.
-
+    Generates a unique Paystack payment link for a user.
+    
     Args:
-        telegram_id (int): The user's Telegram ID for identification in webhooks.
-        plan_code (str): The Paystack plan code (e.g., "PLN_xxx") the user wants.
-        user_email (str): A dummy email is required by Paystack if user doesn't provide one.
-
+        telegram_id (int): The user's Telegram ID
+        amount (int): Amount in kobo (₦500 = 50000 kobo)
+        user_email (str): User's email address
+        plan_name (str): Name of the subscription plan
+        
     Returns:
-        str: The authorization URL (payment link) or None if it fails.
+        str: The authorization URL (payment link) or None if it fails
     """
     try:
         # Initialize Paystack with secret key
         transaction = Transaction(secret_key=Config.PAYSTACK_SECRET_KEY)
 
         # Create the transaction
-        # By passing 'plan', Paystack automatically handles the recurring billing
         response = transaction.initialize(
-            amount=0,  # Amount is determined by the plan, so we pass 0 or let Paystack handle it
+            amount=amount,
             email=user_email,
-            plan=plan_code,
             metadata={
-                "telegram_id": str(telegram_id),  # Store ID so webhook knows who paid
+                "telegram_id": str(telegram_id),
+                "plan_name": plan_name,
                 "custom_fields": [
-                    {"display_name": "Telegram ID", "variable_name": "telegram_id", "value": str(telegram_id)}
+                    {"display_name": "Telegram ID", "variable_name": "telegram_id", "value": str(telegram_id)},
+                    {"display_name": "Plan Name", "variable_name": "plan_name", "value": plan_name}
                 ]
             }
         )
-
+        
         if response['status']:
             return response['data']['authorization_url']
         else:
@@ -45,18 +44,3 @@ def get_payment_link(telegram_id: int, plan_code: str, user_email: str) -> str:
     except Exception as e:
         logger.error(f"Payment Service Exception: {str(e)}")
         return None
-
-
-def sync_paystack_plans():
-    """
-    (Optional) Helper to sync plans from Paystack to local DB.
-    This is useful for admin setup or ensuring local DB matches Paystack.
-    """
-    try:
-        paystack_plan = Plan(secret_key=Config.PAYSTACK_SECRET_KEY)
-        plans = paystack_plan.list_plan()
-        # Logic to sync these to bot.models.PricingPlan would go here
-        return plans
-    except Exception as e:
-        logger.error(f"Plan Sync Error: {str(e)}")
-        return []
