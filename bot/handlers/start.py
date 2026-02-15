@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from bot.models import User, db
 from bot import app
 from bot.config import Config
+import re
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command and the 'Back to Menu' button."""
@@ -35,6 +36,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
+    # Show Admin button if user is admin
     if telegram_id == Config.ADMIN_USER_ID:
         keyboard.append([InlineKeyboardButton("⚙️ Admin Panel", callback_data="MENU_ADMIN")])
 
@@ -47,7 +49,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Choose an option below to get started:"
     )
 
-    # Differentiate between a /start command and a 'Back' button press
     if update.callback_query:
         query = update.callback_query
         await query.answer()
