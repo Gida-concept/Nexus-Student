@@ -1,11 +1,10 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CommandHandler
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CommandHandler, CallbackQueryHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Conversation States
 COURSE_NAME = 1
 
 async def advisor_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -13,10 +12,8 @@ async def advisor_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    # Clear previous context
     context.user_data.clear()
     
-    # Prompt user for course input via chat
     await query.edit_message_text(
         "🎓 **Course Advisor**\n\n"
         "I can help you with admission requirements for any course in Nigerian universities.\n\n"
@@ -25,13 +22,11 @@ async def advisor_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return COURSE_NAME
 
 async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the user's text input and queries Perplexica for Nigerian admission requirements."""
+    """Handles the user's text input and queries the AI."""
     course_name = update.message.text.strip()
     
-    # Show a "thinking" status
-    status_message = await update.message.reply_text("🔎 Researching admission requirements via Perplexica...")
+    status_message = await update.message.reply_text("🔎 Researching admission requirements...")
     
-    # Construct a strict prompt for the AI to ensure we get the specific Nigerian format
     prompt = (
         f"You are an expert on Nigerian University Admission. A student wants to study '{course_name}'. "
         f"Based on the Nigerian standard, provide the following details clearly:\n\n"
@@ -42,10 +37,7 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     try:
-        # Query Perplexica
         response_text = await query_perplexica(prompt, focus_mode="webSearch")
-        
-        # Clean up the thinking message and send the final result
         await status_message.delete()
         await update.message.reply_text(
             f"📘 **Admission Guide: {course_name}**\n\n"
@@ -64,9 +56,8 @@ async def cancel_advisor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Course advisor cancelled.")
     return ConversationHandler.END
 
-# Define the Conversation Handler
 advisor_conversation_handler = ConversationHandler(
-    entry_points=[], # Triggered via callback query in router
+    entry_points=[CallbackQueryHandler(advisor_start, pattern="^MENU_COURSE_ADVISOR$")],
     states={
         COURSE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_course_name)],
     },
