@@ -1,7 +1,6 @@
 from flask import Flask
 from bot.config import Config
 from .routes import webhook_bp
-from bot import app as bot_app  # Import the Flask app from bot
 import logging
 
 # Configure logging
