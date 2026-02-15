@@ -14,82 +14,60 @@ genai.configure(api_key=Config.GEMINI_API_KEY)
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 class SearchEngine:
-    """Wrapper for academic search engines"""
+    """Wrapper for academic search engines - DuckDuckGo only"""
     @staticmethod
     async def search(query: str, focus_mode: str = "academic") -> Dict:
-        """Perform search across multiple academic engines CONCURRENTLY."""
-        
-        # Run all search tasks at the same time
-        tasks = [
-            SearchEngine._search_searxng(query, focus_mode),
-            SearchEngine._search_arxiv(query),
-            SearchEngine._search_semantic_scholar(query)
-        ]
-        
-        results_list = await asyncio.gather(*tasks)
-        
+        """Perform search using only DuckDuckGo"""
         results = {
-            "searxng": results_list[0],
-            "arxiv": results_list[1],
-            "semantic_scholar": results_list[2]
+            "duckduckgo": await SearchEngine._search_duckduckgo(query, focus_mode)
         }
-        
         return {"query": query, "focus_mode": focus_mode, "results": results}
 
     @staticmethod
-    async def _search_searxng(query: str, focus_mode: str) -> List[Dict]:
-        """SearXNG search with 30 results"""
-        params = {
-            "q": query,
-            "format": "json",
-            "categories": "science",
-            "language": "en-US",
-            "safesearch": 1,
-            "limit": 30
-        }
+    async def _search_duckduckgo(query: str, focus_mode: str) -> List[Dict]:
+        """DuckDuckGo search with 30 results"""
         try:
-            response = requests.get("https://searxng.org/search", params=params, timeout=15)
-            response.raise_for_status()
-            return response.json().get("results", [])
-        except Exception as e:
-            logger.error(f"SearXNG Error: {e}")
-            return []
-
-    @staticmethod
-    async def _search_arxiv(query: str) -> List[Dict]:
-        """arXiv search with 30 results"""
-        params = {
-            "search_query": f"all:{query}",
-            "start": 0,
-            "max_results": 30,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending"
-        }
-        try:
-            response = requests.get("https://export.arxiv.org/api/query", params=params, timeout=15)
-            response.raise_for_status()
-            return response.json().get("entries", [])
-        except Exception as e:
-            logger.error(f"arXiv Error: {e}")
-            return []
-
-    @staticmethod
-    async def _search_semantic_scholar(query: str) -> List[Dict]:
-        """Semantic Scholar search with 30 results"""
-        try:
+            # Use the official DuckDuckGo API
             response = requests.get(
-                "https://api.semanticscholar.org/graphql",
-                json={"query": f"{{searchPaper(query: \"{query}\", limit: 30){{title url year abstract}}}}"},
+                "https://api.duckduckgo.com/",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "no_html": 1,
+                    "skip_disambig": 1
+                },
                 timeout=15
             )
             response.raise_for_status()
-            return response.json().get("data", {}).get("searchPaper", [])
+            
+            data = response.json()
+            results = []
+            
+            # Add main result
+            if data.get('Abstract'):
+                results.append({
+                    "title": data.get('Heading', 'Result'),
+                    "url": data.get('AbstractURL', ''),
+                    "description": data.get('Abstract', '')
+                })
+            
+            # Add related topics
+            for topic in data.get('RelatedTopics', [])[:29]:  # Limit to 29 more results
+                if isinstance(topic, dict) and 'Text' in topic:
+                    results.append({
+                        "title": topic.get('Text', 'Result'),
+                        "url": topic.get('FirstURL', ''),
+                        "description": topic.get('Result', '')
+                    })
+            
+            return results
+            
         except Exception as e:
-            logger.error(f"Semantic Scholar Error: {e}")
+            logger.error(f"DuckDuckGo Error: {e}")
             return []
 
 async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
-    """Academic research pipeline with 30 results per engine"""
+    """Academic research pipeline using only DuckDuckGo"""
     try:
         search_results = await SearchEngine.search(query, focus_mode)
 
@@ -104,8 +82,8 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
                     Format your response with:
                     1. Clear headings
                     2. Bullet points for key concepts
-                    3. Proper citations in APA format
-                    4. Comprehensive analysis of all sources
+                    3. Proper citations where applicable
+                    4. Comprehensive analysis of the information found
                     """
                 },
                 {"role": "user", "content": query}
