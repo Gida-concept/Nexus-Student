@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
-from bot.models import PricingPlan, db
+from bot.models import PricingPlan, Subscription, db
 from bot.services.payment_service import get_payment_link
 from bot import app
 from bot.config import Config
@@ -45,7 +45,7 @@ async def show_subscription_plans(update: Update, context: ContextTypes.DEFAULT_
         "Select a subscription plan to unlock all premium features.",
         reply_markup=reply_markup
     )
-    return
+    return SELECTING_PLAN
 
 async def start_plan_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for the conversation. Triggered when a user clicks a specific plan."""
@@ -100,7 +100,7 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
 
     await update.message.reply_text("⏳ Generating secure payment link...")
 
-    # Generate Link
+    # Generate payment link using our pricing from database
     payment_url = get_payment_link(telegram_id, plan.paystack_plan_code, email)
 
     if payment_url:
