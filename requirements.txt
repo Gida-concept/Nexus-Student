@@ -1,0 +1,18 @@
+# Core dependencies
+python-telegram-bot>=20.0
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Login
+Flask-WTF
+python-dotenv
+psycopg2-binary
+requests
+gunicorn
+paystackapi
+cloudinary
+PyMuPDF
+
+# AI Services
+google-generativeai
+groq-sdk

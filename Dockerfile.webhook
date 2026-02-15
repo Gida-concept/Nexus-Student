@@ -1,0 +1,25 @@
+FROM python:3.10-slim
+
+# Install system dependencies for PostgreSQL (psycopg2)
+# Required for the database connection in the webhook listener
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+# We need the whole context because the webhook app imports models from 'bot/'
+COPY . .
+
+# Create a non-root user
+RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
+# Run Gunicorn to serve the Flask app
+# Points to 'webhook_app:app' (runs webhook_app/__init__.py)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "webhook_app:app"]
