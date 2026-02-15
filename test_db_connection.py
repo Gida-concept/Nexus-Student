@@ -1,9 +1,9 @@
-from bot import db_app
+from bot import app as bot_app
 from bot.models import db
 
 def test_connection():
     try:
-        with db_app.app_context():
+        with bot_app.app_context():
             # Try to connect to the database
             connection = db.engine.connect()
             print("✅ Successfully connected to Supabase database!")
