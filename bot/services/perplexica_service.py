@@ -5,12 +5,13 @@ from groq import GroqClient
 import logging
 import json
 from typing import Dict, List
+from bot.config import Config
 
 logger = logging.getLogger(__name__)
 
 # Initialize APIs with specified models
-genai.configure(api_key="YOUR_GEMINI_API_KEY")
-groq_client = GroqClient(api_key="YOUR_GROQ_API_KEY")
+genai.configure(api_key=Config.GEMINI_API_KEY)
+groq_client = GroqClient(api_key=Config.GROQ_API_KEY)
 
 class SearchEngine:
     """Wrapper for academic search engines"""
