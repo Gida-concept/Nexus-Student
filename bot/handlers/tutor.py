@@ -1,7 +1,8 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -15,35 +16,76 @@ async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Clear data from any previous conversation
     context.user_data.clear()
     
-    await query.edit_message_text("🧠 **Mini Tutor**\n\nAsk me any academic question! I can help with explanations, summaries, study tips, or quick answers to your coursework questions.\n\nWhat would you like to know?")
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        "🧠 **Mini Tutor**\n\n"
+        "Ask me any academic question! I can help with explanations, summaries, study tips, or quick answers to your coursework questions.\n\n"
+        "What would you like to know?",
+        reply_markup=reply_markup
+    )
     return TUTOR_QUESTION
 
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the user's question and get an AI response."""
     question = update.message.text.strip()
+    
+    # Remove emojis from input
+    emoji_pattern = re.compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+        u"\U00002702-\U000027B0"
+        u"\U000024C2-\U0001F251"
+        "]+", flags=re.UNICODE)
+    question = emoji_pattern.sub(r'', question)
+    
     if not question:
-        await update.message.reply_text("❌ Please ask a valid question.")
+        await update.message.reply_text("❌ Please ask a valid question without emojis.")
         return TUTOR_QUESTION
+        
     status_msg = await update.message.reply_text("🔮 Searching for the best answer...")
+    
     try:
         prompt = f"You are an expert academic tutor. Answer this student's question clearly and concisely:\n\nQuestion: {question}\n\nProvide a detailed, well-structured answer with key points and examples where appropriate."
         answer = await query_perplexica(prompt, focus_mode="academic")
+        
         await status_msg.delete()
-        await update.message.reply_text(f"📚 **Answer to your question**\n\n{answer}\n\nWould you like to ask another question?")
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"📚 **Answer to your question**\n\n{answer}\n\nWould you like to ask another question?",
+            reply_markup=reply_markup
+        )
         return TUTOR_QUESTION
+        
     except Exception as e:
         logger.error(f"Tutor question failed: {e}")
         await status_msg.delete()
-        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to that question. Please try again.")
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to that question. Please try again.", reply_markup=reply_markup)
         return TUTOR_QUESTION
 
 async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the tutor conversation."""
     if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text("Tutor session ended.")
+        query = update.callback_query
+        await query.answer()
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text("Tutor session ended.", reply_markup=reply_markup)
     else:
         await update.message.reply_text("Tutor session ended.")
+        
     return ConversationHandler.END
 
 tutor_conversation_handler = ConversationHandler(
