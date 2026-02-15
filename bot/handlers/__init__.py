@@ -1,10 +1,10 @@
-from telegram.ext import Application
+from telegram.ext import Application, CallbackQueryHandler
 from .start import start_command
 from .course_advisor import advisor_conversation_handler
 from .project import project_conversation_handler
 from .assignment import assignment_conversation_handler
 from .tutor import tutor_conversation_handler
-from .payment import payment_conversation_handler  # Make sure this is correct
+from .payment import payment_conversation_handler
 from .admin import admin_handlers
 
 def setup_handlers(application: Application):
