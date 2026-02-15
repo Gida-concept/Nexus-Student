@@ -13,7 +13,7 @@ from bot.handlers.course_advisor import advisor_conversation_handler
 from bot.handlers.project import project_conversation_handler
 from bot.handlers.assignment import assignment_conversation_handler
 from bot.handlers.tutor import tutor_conversation_handler
-from bot.handlers.payment import payment_conversation_handler, show_subscription_plans
+from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.handlers.help import help_command
 
@@ -49,12 +49,11 @@ def main():
     application.add_handler(tutor_conversation_handler)
     application.add_handler(payment_conversation_handler)
 
-    # Register admin handlers as a group
+    # Register admin handlers
     for handler in admin_handlers:
         application.add_handler(handler)
 
-    # Register handlers for simple menu buttons that don't start a conversation
-    application.add_handler(CallbackQueryHandler(show_subscription_plans, pattern="^MENU_SUBSCRIBE$"))
+    # Register handlers for simple menu buttons
     application.add_handler(CallbackQueryHandler(help_command, pattern="^MENU_HELP$"))
     
     # Handler to go back to the main menu from other screens
