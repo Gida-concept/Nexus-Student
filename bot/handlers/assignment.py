@@ -93,7 +93,7 @@ async def cancel_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Define the Conversation Handler with per_* settings
+# Define the Conversation Handler (removed per_* settings)
 assignment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_assignment, pattern="^MENU_ASSIGNMENT$")],
     states={
@@ -105,8 +105,5 @@ assignment_conversation_handler = ConversationHandler(
         ],
         PROCESSING_ASSIGNMENT: [MessageHandler(filters.ALL, process_assignment)]
     },
-    fallbacks=[CommandHandler("cancel", cancel_assignment)],
-    per_message=True,  # Track conversations per message
-    per_chat=True,     # Track conversations per chat
-    per_user=True      # Track conversations per user
+    fallbacks=[CommandHandler("cancel", cancel_assignment)]
 )
