@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filt
 from bot.models import Project, ProjectChapter, db
 from bot import app
 from bot.services.perplexica_service import query_perplexica
-from bot.utils.decorators import subscription_required
+from bot.utils.decorators import subscription_required  # This decorator checks if user is premium
 import logging
 import re
 
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 PROJECT_TITLE, PROJECT_TOPIC, PROJECT_PAGE_COUNT, CONFIRM_PROJECT = range(4)
 GENERATING_CHAPTER = 5
 
+@subscription_required  # Add this decorator to enforce paywall
 async def start_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for project creation flow."""
     query = update.callback_query
@@ -28,6 +29,7 @@ async def start_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return PROJECT_TITLE
 
+@subscription_required  # Add this decorator to enforce paywall
 async def get_project_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Capture project title."""
     project_title = update.message.text.strip()
@@ -58,6 +60,7 @@ async def get_project_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return PROJECT_TOPIC
 
+@subscription_required  # Add this decorator to enforce paywall
 async def get_project_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Capture project topic."""
     project_topic = update.message.text.strip()
@@ -96,6 +99,7 @@ async def get_project_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return PROJECT_PAGE_COUNT
 
+@subscription_required  # Add this decorator to enforce paywall
 async def get_project_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Capture page count selection."""
     if update.message:
@@ -123,6 +127,7 @@ async def get_project_page_count(update: Update, context: ContextTypes.DEFAULT_T
 
     return await confirm_project(update, context)
 
+@subscription_required  # Add this decorator to enforce paywall
 async def confirm_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show project summary for confirmation."""
     page_count = context.user_data.get('page_count', 5)
@@ -150,6 +155,7 @@ async def confirm_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return CONFIRM_PROJECT
 
+@subscription_required  # Add this decorator to enforce paywall
 async def create_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Create the project in the database."""
     query = update.callback_query
@@ -186,6 +192,7 @@ async def create_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return GENERATING_CHAPTER
 
+@subscription_required  # Add this decorator to enforce paywall
 async def generate_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generate a chapter using the new search pipeline."""
     chapter_title = update.message.text.strip()
