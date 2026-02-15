@@ -14,5 +14,4 @@ cloudinary
 PyMuPDF
 
 # AI Services
-google-generativeai>=0.8.0
-groq>=0.8.0
+groq>=0.8.0  # Only Groq now, removed google-generativeai
