@@ -47,13 +47,17 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     status_message = await update.message.reply_text("🔎 Researching admission requirements...")
     
+    # Updated prompt to be more direct and specific about Nigerian standards
     prompt = (
         f"You are an expert on Nigerian University Admission. A student wants to study '{course_name}'. "
-        f"Based on the Nigerian standard, provide the following details clearly:\n\n"
-        f"1. **JAMB Score:** The recommended JAMB score and the minimum cut-off mark.\n"
-        f"2. **WAEC/NECO Requirements:** List exactly 8 minimum compulsory subjects (Must include English and Mathematics) required for this course, plus 1 optional subject.\n"
-        f"3. **UTME Subjects:** The exact 4 subjects the student must sit for in JAMB for this course.\n\n"
-        f"Use bullet points for readability."
+        f"Provide ONLY the following information in a clear, concise format with no long explanations:\n\n"
+        f"1. JAMB Score: State only the recommended score and minimum cut-off mark as numbers.\n"
+        f"2. WAEC/NECO Requirements: List EXACTLY 8 compulsory subjects (MUST include English Language and Mathematics) plus 1 optional subject. Format as: 'Compulsory: [subject1], [subject2], ... | Optional: [subject]'\n"
+        f"3. UTME Subjects: List EXACTLY 4 subjects required for JAMB.\n\n"
+        f"Format your response exactly like this example:\n"
+        f"JAMB Score: Recommended: 250, Minimum: 200\n"
+        f"WAEC/NECO: Compulsory: English Language, Mathematics, Physics, Chemistry, Biology, Economics, Geography, Government | Optional: Further Mathematics\n"
+        f"UTME Subjects: English Language, Mathematics, Physics, Chemistry"
     )
 
     try:
@@ -72,7 +76,11 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Course Advisor Error: {e}")
         await status_message.delete()
-        await update.message.reply_text("⚠️ Sorry, I couldn't retrieve the details at this time.")
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text("⚠️ Sorry, I couldn't retrieve the details at this time.", reply_markup=reply_markup)
     
     return ConversationHandler.END
 
