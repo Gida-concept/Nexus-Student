@@ -15,19 +15,13 @@ async def start_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for project creation flow."""
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text(
-        "📝 **Create New Project**\n\n"
-        "Let's create a new academic project. I'll guide you through the process.\n\n"
-        "First, please enter the title of your project:"
-    )
+    await query.edit_message_text("📝 **Create New Project**\n\nLet's create a new academic project. I'll guide you through the process.\n\nFirst, please enter the title of your project:")
     return PROJECT_TITLE
 
 async def get_project_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Capture project title."""
     context.user_data['project_title'] = update.message.text.strip()
-    await update.message.reply_text(
-        "Great! Now, please describe the topic of your project in detail:"
-    )
+    await update.message.reply_text("Great! Now, please describe the topic of your project in detail:")
     return PROJECT_TOPIC
 
 async def get_project_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -43,11 +37,7 @@ async def get_project_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
-        "How long should your project be? (1 page = 750 words)\n\n"
-        "Select an option or choose 'Custom Length':",
-        reply_markup=reply_markup
-    )
+    await update.message.reply_text("How long should your project be? (1 page = 750 words)\n\nSelect an option or choose 'Custom Length':", reply_markup=reply_markup)
     return PROJECT_PAGE_COUNT
 
 async def get_project_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,9 +58,7 @@ async def get_project_page_count(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer()
         page_count = query.data
         if page_count == "custom":
-            await query.edit_message_text(
-                "Please enter the exact number of pages you want (1 page = 750 words):"
-            )
+            await query.edit_message_text("Please enter the exact number of pages you want (1 page = 750 words):")
             return PROJECT_PAGE_COUNT
         else:
             context.user_data['page_count'] = int(page_count)
@@ -113,7 +101,7 @@ async def create_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Create project record
-    with db_app.app_context():
+    with app.app_context():
         project = Project(
             user_id=update.effective_user.id,
             title=context.user_data['project_title'],
@@ -160,7 +148,7 @@ async def generate_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chapter_content = await query_perplexica(prompt, focus_mode="academic")
 
         # Save to database
-        with db_app.app_context():
+        with app.app_context():
             chapter = ProjectChapter(
                 project_id=project_id,
                 title=chapter_title,
@@ -219,5 +207,4 @@ project_conversation_handler = ConversationHandler(
         ]
     },
     fallbacks=[CommandHandler("cancel", cancel_project)]
-
 )
