@@ -1,8 +1,8 @@
 from functools import wraps
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot import app  # Import the Flask app from __init__ to get DB context
-from bot.models import User
+from bot import app
+from bot.models import User, db
 from bot.config import Config
 
 def admin_required(func):
