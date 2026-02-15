@@ -101,3 +101,4 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
     except Exception as e:
         logger.error(f"Search Error: {e}")
         return "Sorry, the research service is temporarily unavailable."
+
