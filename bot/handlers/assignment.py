@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filt
 from bot.models import Assignment
 from bot.services.file_service import process_uploaded_pdf
 from bot.services.perplexica_service import query_perplexica
-from bot import db_app
+from bot import app
 import os
 import logging
 
@@ -100,4 +100,5 @@ assignment_conversation_handler = ConversationHandler(
         PROCESSING_ASSIGNMENT: [MessageHandler(filters.ALL, process_assignment)]
     },
     fallbacks=[CommandHandler("cancel", cancel_assignment)]
+
 )
