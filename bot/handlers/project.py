@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.models import Project, ProjectChapter
-from bot import db_app
+from bot import app
 from bot.services.perplexica_service import query_perplexica
 from bot.utils.decorators import subscription_required
 import logging
@@ -219,4 +219,5 @@ project_conversation_handler = ConversationHandler(
         ]
     },
     fallbacks=[CommandHandler("cancel", cancel_project)]
+
 )
