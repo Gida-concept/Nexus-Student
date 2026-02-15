@@ -15,11 +15,11 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL')
 
     # === External Service API Keys ===
-    GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY')  # Only Groq now
     PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
     PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
     CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
-    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+    # Removed GEMINI_API_KEY since we're not using it
 
     # === Application Feature Flags ===
     ENABLE_PAYMENTS = os.getenv('ENABLE_PAYMENTS', 'false').lower() == 'true'
@@ -34,11 +34,10 @@ class Config:
         required_vars = [
             'BOT_TOKEN',
             'DATABASE_URL',
-            'GROQ_API_KEY',
+            'GROQ_API_KEY',  # Updated to only require Groq
             'PAYSTACK_SECRET_KEY',
             'PAYSTACK_PUBLIC_KEY',
-            'CLOUDINARY_URL',
-            'GEMINI_API_KEY'
+            'CLOUDINARY_URL'
         ]
 
         for var in required_vars:
