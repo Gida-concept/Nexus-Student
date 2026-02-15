@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Define the blueprint
 webhook_bp = Blueprint('webhook', __name__)
 
 @webhook_bp.route('/paystack/webhook', methods=['POST'])
@@ -169,3 +170,4 @@ def handle_subscription_cancel(event):
 
     logger.info(f"Subscription cancelled for user {telegram_id}")
     return jsonify({"status": "ok"}), 200
+
