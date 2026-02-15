@@ -4,7 +4,7 @@ from bot.models import Assignment, db
 from bot.services.file_service import process_uploaded_pdf
 from bot.services.perplexica_service import query_perplexica
 from bot import app
-from bot.utils.decorators import subscription_required  # Add this decorator
+from bot.utils.decorators import subscription_required
 import os
 import logging
 import re
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 ASSIGNMENT_TOPIC, ASSIGNMENT_FILE, PROCESSING_ASSIGNMENT, FOLLOW_UP_QUESTION = range(4)
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def start_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for assignment assistance flow."""
     query = update.callback_query
@@ -29,7 +29,7 @@ async def start_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ASSIGNMENT_TOPIC
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def get_assignment_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Capture assignment topic."""
     assignment_topic = update.message.text.strip()
@@ -65,7 +65,7 @@ async def get_assignment_topic(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     return ASSIGNMENT_FILE
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle PDF file upload."""
     query = update.callback_query
@@ -88,7 +88,7 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.edit_message_text("Please upload your PDF file now. You can send it as a document in this chat.", reply_markup=reply_markup)
     return ASSIGNMENT_FILE
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def process_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the assignment with or without PDF."""
     if update.message and update.message.document:
@@ -156,7 +156,7 @@ async def process_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("⚠️ Failed to process your assignment. Please try again.", reply_markup=reply_markup)
         return ConversationHandler.END
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle follow-up questions about the assignment."""
     query = update.callback_query
@@ -176,7 +176,7 @@ async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT
     else:
         return ConversationHandler.END
 
-@subscription_required  # Add this decorator to enforce paywall
+@subscription_required
 async def process_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the follow-up question and get AI response."""
     followup_question = update.message.text.strip()
@@ -261,6 +261,7 @@ async def cancel_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+# Fixed: Removed per_* settings that were causing warnings
 assignment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_assignment, pattern="^MENU_ASSIGNMENT$")],
     states={
