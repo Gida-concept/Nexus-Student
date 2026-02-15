@@ -17,12 +17,23 @@ class SearchEngine:
     """Wrapper for academic search engines"""
     @staticmethod
     async def search(query: str, focus_mode: str = "academic") -> Dict:
-        """Perform search across multiple academic engines"""
+        """Perform search across multiple academic engines CONCURRENTLY."""
+        
+        # Run all search tasks at the same time
+        tasks = [
+            SearchEngine._search_searxng(query, focus_mode),
+            SearchEngine._search_arxiv(query),
+            SearchEngine._search_semantic_scholar(query)
+        ]
+        
+        results_list = await asyncio.gather(*tasks)
+        
         results = {
-            "searxng": await SearchEngine._search_searxng(query, focus_mode),
-            "arxiv": await SearchEngine._search_arxiv(query),
-            "semantic_scholar": await SearchEngine._search_semantic_scholar(query)
+            "searxng": results_list[0],
+            "arxiv": results_list[1],
+            "semantic_scholar": results_list[2]
         }
+        
         return {"query": query, "focus_mode": focus_mode, "results": results}
 
     @staticmethod
@@ -101,7 +112,6 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
             ]
         )
 
-        # Use the new genai interface
         model = genai.GenerativeModel("gemini-2.5-flash")
         final_response = model.generate_content(
             f"Refine this academic response: {groq_response.choices[0].message.content}\n"
