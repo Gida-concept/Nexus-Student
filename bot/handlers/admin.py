@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 from bot.models import User, PricingPlan, Subscription
-from bot import db_app
+from bot import app
 from bot.utils.decorators import admin_required
 import logging
 
@@ -94,4 +94,5 @@ admin_handlers = [
     CallbackQueryHandler(handle_admin_payments, pattern="^ADMIN_STATS$"),
     CallbackQueryHandler(toggle_payment_system, pattern="^TOGGLE_PAYMENTS_"),
     CallbackQueryHandler(close_admin_menu, pattern="^ADMIN_CLOSE$")
+
 ]
