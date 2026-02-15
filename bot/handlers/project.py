@@ -187,7 +187,6 @@ async def cancel_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Define the Conversation Handler (removed per_* settings)
 project_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_project, pattern="^MENU_PROJECT$")],
     states={
