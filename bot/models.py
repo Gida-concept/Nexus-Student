@@ -11,7 +11,7 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     projects = db.relationship('Project', backref='user', lazy=True, cascade="all, delete-orphan")
-    assignments = db.relationship('Assignment', backref='user', lazy=True)
+    assignments = db.relationship('Assignment', backref='user', lazy=True, cascade="all, delete-orphan")
 
 class Project(db.Model):
     __tablename__ = 'projects'
