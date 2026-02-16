@@ -3,24 +3,33 @@ from telegram.ext import ContextTypes
 from bot.models import User, db
 from bot import app
 from bot.config import Config
-import re
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command and the 'Back to Menu' button."""
+    """Handles the /start command and user initialization."""
+    
+    # Clear any existing conversation state
+    context.user_data.clear()
     
     user = update.effective_user
     telegram_id = user.id
     username = user.username
 
+    # Ensure User Exists in Database
     with app.app_context():
         db_user = User.query.filter_by(telegram_id=telegram_id).first()
+        
         if not db_user:
+            # Create new user
             db_user = User(telegram_id=telegram_id, username=username)
             db.session.add(db_user)
+            db.session.commit()
+            
+            # If this is the admin, update the flag just in case
             if telegram_id == Config.ADMIN_USER_ID:
                 db_user.is_admin = True
-            db.session.commit()
+                db.session.commit()
         
+    # Construct the Main Menu (Custom Buttons)
     keyboard = [
         [
             InlineKeyboardButton("🎓 Course Advisor", callback_data="MENU_COURSE_ADVISOR"),
