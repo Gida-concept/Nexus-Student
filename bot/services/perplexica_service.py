@@ -8,7 +8,7 @@ from bot.config import Config
 
 logger = logging.getLogger(__name__)
 
-# Initialize Groq client only (no Gemini)
+# Initialize Groq client only
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 class SearchEngine:
@@ -36,9 +36,14 @@ class SearchEngine:
                 },
                 timeout=15
             )
-            response.raise_for_status()
             
-            data = response.json()
+            # Check if response is valid JSON
+            try:
+                data = response.json()
+            except ValueError:
+                logger.error(f"DuckDuckGo Error: Invalid JSON response")
+                return []
+                
             results = []
             
             # Add main result
@@ -92,7 +97,7 @@ async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
         # Get the initial response
         initial_response = groq_response.choices[0].message.content
 
-        # Use Groq again for refinement (instead of Gemini)
+        # Use Groq again for refinement
         refinement_response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
