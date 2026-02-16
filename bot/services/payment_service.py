@@ -25,6 +25,7 @@ def get_payment_link(telegram_id: int, amount: int, user_email: str, plan_name: 
         response = transaction.initialize(
             amount=amount,
             email=user_email,
+            channels=['card', 'bank', 'ussd', 'qr', 'mobile_money'],  # All available payment channels
             metadata={
                 "telegram_id": str(telegram_id),
                 "plan_name": plan_name,
