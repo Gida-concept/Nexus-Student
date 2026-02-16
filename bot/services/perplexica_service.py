@@ -1,49 +1,36 @@
-import asyncio
-import requests
-from groq import Groq
 import logging
-import json
-from typing import Dict, List
+from groq import Groq
 from bot.config import Config
 
 logger = logging.getLogger(__name__)
 
-# Initialize Groq client only
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
-class SearchEngine:
-    """Wrapper for academic search engines - using a more reliable method"""
-    @staticmethod
-    async def search(query: str, focus_mode: str = "academic") -> Dict:
-        """Perform search using a more reliable method"""
-        # For now, we'll use Groq to generate a response without external search
-        # This avoids the DuckDuckGo API issues entirely
-        return {"query": query, "focus_mode": focus_mode, "results": []}
+def get_system_prompt(focus_mode: str) -> str:
+    if focus_mode == "academic":
+        return (
+            "You are a helpful and highly intelligent AI academic tutor. Your goal is to teach, not just give answers. "
+            "Be conversational. Ask clarifying questions if needed. Use analogies. Break down complex topics into simple steps. "
+            "Always maintain a supportive and encouraging tone."
+        )
+    return "You are a helpful and precise AI research assistant."
 
-async def query_perplexica(query: str, focus_mode: str = "academic") -> str:
-    """Academic research pipeline using only Groq (no external search for now)"""
+async def query_perplexica(query: str, focus_mode: str = "academic", history: list = None) -> str:
+    if history is None:
+        history = []
+        
+    system_prompt = get_system_prompt(focus_mode)
+    
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": query})
+
     try:
-        # Use only Groq for the response
         groq_response = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"""
-                    You are an expert on Nigerian University Admission and academic subjects.
-                    Provide accurate, concise information based on your knowledge.
-                    Format your response with:
-                    1. Clear headings
-                    2. Bullet points for key concepts
-                    3. Proper structure for the requested information
-                    """
-                },
-                {"role": "user", "content": query}
-            ]
+            messages=messages
         )
-
         return groq_response.choices[0].message.content
-
     except Exception as e:
-        logger.error(f"Search Error: {e}")
-        return "Sorry, the research service is temporarily unavailable."
+        logger.error(f"Groq API Error: {e}")
+        return "Sorry, I encountered an error with the AI service. Please try again later."
