@@ -1,116 +1,135 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
+from bot.services.perplexica_service import query_perplexica
 from bot.models import Project, ProjectChapter, User, db
 from bot import app
-from bot.services.perplexica_service import query_perplexica
 import logging
+import io
 
 logger = logging.getLogger(__name__)
 
-PROJECT_TITLE, PROJECT_TOPIC, PROJECT_PAGE_COUNT, CONFIRM_PROJECT, GENERATING_CHAPTER, FOLLOW_UP = range(6)
+# Define states for the new project flow
+TITLE, DETAILS, GENERATING = range(3)
 
 async def start_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     context.user_data.clear()
+    
+    # Store initial prompt to guide the AI later
+    context.user_data['history'] = []
+    
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
     await query.edit_message_text(
-        "📝 **New Project**\n\nFirst, what is the title of your project?",
+        "📝 **Final Year Project Generator**\n\nFirst, what is the **Project Title**?",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    return PROJECT_TITLE
+    return TITLE
 
-async def get_project_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['project_title'] = update.message.text.strip()
-    keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-    await update.message.reply_text("Great. Now, describe the main topic.", reply_markup=InlineKeyboardMarkup(keyboard))
-    return PROJECT_TOPIC
-
-async def get_project_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['project_topic'] = update.message.text.strip()
-    keyboard = [
-        [InlineKeyboardButton("5 Pages", callback_data="5"), InlineKeyboardButton("10 Pages", callback_data="10")],
-        [InlineKeyboardButton("15 Pages", callback_data="15"), InlineKeyboardButton("Custom", callback_data="custom")],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
-    ]
-    await update.message.reply_text("How long should each chapter be?", reply_markup=InlineKeyboardMarkup(keyboard))
-    return PROJECT_PAGE_COUNT
-
-async def get_project_page_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        try:
-            context.user_data['page_count'] = int(update.message.text.strip())
-        except ValueError:
-            await update.message.reply_text("Please enter a valid number.")
-            return PROJECT_PAGE_COUNT
-    else:
-        query = update.callback_query
-        await query.answer()
-        if query.data == "custom":
-            await query.edit_message_text("Please enter the number of pages:")
-            return PROJECT_PAGE_COUNT
-        context.user_data['page_count'] = int(query.data)
-    return await confirm_project(update, context)
-
-async def confirm_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    page_count = context.user_data.get('page_count', 5)
-    keyboard = [
-        [InlineKeyboardButton("✅ Confirm & Create", callback_data="confirm")],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
-    ]
-    summary = f"**Project Summary:**\nTitle: {context.user_data.get('project_title')}\nTopic: {context.user_data.get('project_topic')}\nPages per Chapter: {page_count}"
-    if update.message:
-        await update.message.reply_text(summary, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-    else:
-        await update.callback_query.edit_message_text(summary, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-    return CONFIRM_PROJECT
-
-async def create_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    with app.app_context():
-        user = User.query.filter_by(telegram_id=update.effective_user.id).first()
-        project = Project(user_id=user.id, title=context.user_data['project_title'], topic=context.user_data['project_topic'], page_count=context.user_data['page_count'], word_count=context.user_data['page_count'] * 750)
-        db.session.add(project)
-        db.session.commit()
-        context.user_data['project_id'] = project.id
-    keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-    await query.edit_message_text("Project created! What is the title of your first chapter?", reply_markup=InlineKeyboardMarkup(keyboard))
-    return GENERATING_CHAPTER
-
-async def generate_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chapter_title = update.message.text.strip()
-    status_msg = await update.message.reply_text("🔎 Researching and writing...")
-    prompt = f"Generate an academic chapter titled '{chapter_title}' for a project on '{context.user_data['project_topic']}'..."
+async def get_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # This function collects all project details in one go
+    if 'title' not in context.user_data:
+        context.user_data['title'] = update.message.text.strip()
+        await update.message.reply_text("Got it. Now, please provide the rest of the details in this format:\n\n**Department:** [Your Department]\n**Research Type:** [e.g., Survey, Experimental, System Development]\n**Number of Chapters:** [e.g., 5]\n**Referencing Style:** [e.g., APA 7th Edition]")
+        return DETAILS
+    
+    details_text = update.message.text
     try:
-        chapter_content = await query_perplexica(prompt, focus_mode="academic")
-        with app.app_context():
-            project_id = context.user_data['project_id']
-            chapter = ProjectChapter(project_id=project_id, title=chapter_title, content=chapter_content)
-            db.session.add(chapter)
-            db.session.commit()
-        context.user_data['history'] = [{"role": "user", "content": f"Chapter on {chapter_title}"}, {"role": "assistant", "content": chapter_content}]
-        await status_msg.delete()
-        keyboard = [
-            [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
-            [InlineKeyboardButton("➕ Generate Next Chapter", callback_data="next_chapter")],
-            [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
-        ]
-        await update.message.reply_text(f"**{chapter_title}**\n\n{chapter_content[:1000]}...", reply_markup=InlineKeyboardMarkup(keyboard))
-        return FOLLOW_UP
-    except Exception as e:
-        logger.error(f"Chapter generation failed: {e}")
-        await status_msg.delete()
-        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-        await update.message.reply_text("⚠️ An error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
-        return ConversationHandler.END
+        details = {}
+        for line in details_text.split('\n'):
+            if ':' in line:
+                key, value = line.split(':', 1)
+                details[key.strip().lower()] = value.strip()
 
-async def ask_next_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        context.user_data['department'] = details.get('department', 'Not Specified')
+        context.user_data['research_type'] = details.get('research type', 'Not Specified')
+        context.user_data['num_chapters'] = int(details.get('number of chapters', 5))
+        context.user_data['referencing'] = details.get('referencing style', 'APA 7th Edition')
+        
+        summary = (
+            f"**Project Details Confirmation:**\n\n"
+            f"**Title:** {context.user_data['title']}\n"
+            f"**Department:** {context.user_data['department']}\n"
+            f"**Research Type:** {context.user_data['research_type']}\n"
+            f"**Chapters:** {context.user_data['num_chapters']}\n"
+            f"**Style:** {context.user_data['referencing']}\n\n"
+            "Is this correct?"
+        )
+        keyboard = [
+            [InlineKeyboardButton("✅ Yes, Start Generating", callback_data="start_generating")],
+            [InlineKeyboardButton("✏️ No, Start Over", callback_data="start_over")]
+        ]
+        await update.message.reply_text(summary, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        return GENERATING
+
+    except (ValueError, KeyError) as e:
+        await update.message.reply_text("There was an error in your formatting. Please provide the details again in the correct format.")
+        return DETAILS
+
+async def generate_chapters(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    if query.data == 'start_over':
+        context.user_data.clear()
+        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
+        await query.edit_message_text("Ok, let's start over. What is the project title?", reply_markup=InlineKeyboardMarkup(keyboard))
+        return TITLE
+
+    await query.edit_message_text("Great! I will now start generating your project, chapter by chapter. This may take some time.")
+    
+    num_chapters = context.user_data.get('num_chapters', 5)
+    
+    # Construct the initial user prompt for the AI
+    initial_prompt = (
+        f"Project Title: {context.user_data['title']}\n"
+        f"Department: {context.user_data['department']}\n"
+        f"Research Type: {context.user_data['research_type']}\n"
+        f"Referencing Style: {context.user_data['referencing']}\n\n"
+        "Generate the first chapter (Introduction) of this project. After you are done, simply say 'Chapter 1 Complete.' and nothing else."
+    )
+    
+    history = context.user_data.get('history', [])
+    history.append({"role": "user", "content": initial_prompt})
+
+    for i in range(1, num_chapters + 1):
+        status_msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✍️ Generating Chapter {i}...")
+        
+        try:
+            ai_response = await query_perplexica("", focus_mode="project_generator", history=history)
+            history.append({"role": "assistant", "content": ai_response})
+            
+            # Create a document in memory
+            doc_content = ai_response.encode('utf-8')
+            doc_stream = io.BytesIO(doc_content)
+            doc_stream.name = f"Chapter_{i}.docx"
+            
+            await status_msg.delete()
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=doc_stream,
+                caption=f"Here is Chapter {i} of your project."
+            )
+
+            # If it's not the last chapter, ask for the next one
+            if i < num_chapters:
+                next_prompt = f"Excellent. Now, generate Chapter {i+1} based on the previous chapters. After you are done, simply say 'Chapter {i+1} Complete.' and nothing else."
+                history.append({"role": "user", "content": next_prompt})
+            
+        except Exception as e:
+            logger.error(f"Project generation failed at Chapter {i}: {e}")
+            await status_msg.delete()
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Sorry, an error occurred while generating Chapter {i}.")
+            return ConversationHandler.END
+
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-    await query.edit_message_text("What is the title of the next chapter?", reply_markup=InlineKeyboardMarkup(keyboard))
-    return GENERATING_CHAPTER
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="✅ All chapters have been generated!",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
 
 async def universal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
@@ -124,12 +143,9 @@ async def universal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 project_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_project, pattern="^MENU_PROJECT$")],
     states={
-        PROJECT_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_title)],
-        PROJECT_TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_topic)],
-        PROJECT_PAGE_COUNT: [CallbackQueryHandler(get_project_page_count), MessageHandler(filters.TEXT & ~filters.COMMAND, get_project_page_count)],
-        CONFIRM_PROJECT: [CallbackQueryHandler(create_project, pattern="^confirm$")],
-        GENERATING_CHAPTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, generate_chapter)],
-        FOLLOW_UP: [CallbackQueryHandler(ask_next_chapter, pattern="^next_chapter$")],
+        TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_details)],
+        DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_details)],
+        GENERATING: [CallbackQueryHandler(generate_chapters)],
     },
     fallbacks=[CommandHandler('cancel', universal_cancel), CallbackQueryHandler(universal_cancel, pattern="^BACK_TO_MENU$")]
 )
