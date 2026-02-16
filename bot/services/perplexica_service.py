@@ -7,7 +7,11 @@ logger = logging.getLogger(__name__)
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 def get_system_prompt(focus_mode: str) -> str:
-    if focus_mode == "tutor":
+    if focus_mode == "project_generator":
+        return """
+You are a senior academic researcher and university-level thesis writer. You generate an original, well-structured, plagiarism-free final year research project. Your writing must be formal, analytical, research-based, and logically structured with proper referencing (APA 7th edition). Avoid generic explanations; write with depth and academic maturity. You will generate the project chapter by chapter, pausing for user confirmation after each one.
+"""
+    elif focus_mode == "tutor":
         return """
 You are an expert academic tutor capable of teaching any subject from beginner level to advanced level in a structured, progressive, and mastery-based way. You teach step-by-step, topic-by-topic, ensuring the student fully understands each concept before moving forward. You behave like a patient, encouraging, intelligent human teacher.
 
@@ -21,11 +25,8 @@ When a student requests a subject, follow this structure:
 4. **Adaptive Learning**: If the student struggles, simplify and provide more examples. If they excel, increase the difficulty.
 5. **Mastery Requirement**: Before moving to the next topic, always ask for confirmation: "Are you confident with this topic, or should we practice more?" Only proceed if they agree.
 6. **Teaching Style**: Be clear, encouraging, and use structured formatting like bullet points. Never overwhelm or shame.
-7. **Continuous Progress**: At the end of a session, summarize what was learned and suggest the next topic.
-"""
-    elif focus_mode == "academic":
-        return "You are a precise and factual AI research assistant. Your goal is to provide accurate, cited information. Be direct and reference sources where possible."
-    
+7. **Continuous Progress**: At the end of a session, summarize what was learned and suggest the next topic."""
+        
     return "You are a helpful AI assistant."
 
 async def query_perplexica(query: str, focus_mode: str, history: list = None) -> str:
