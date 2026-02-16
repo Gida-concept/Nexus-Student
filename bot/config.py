@@ -1,46 +1,63 @@
-import os
-from dotenv import load_dotenv
+import logging
+import sys
+from telegram import Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
-# Load environment variables from .env file
-load_dotenv()
+from bot.config import Config
+from bot import app
+from bot.models import db
 
-class Config:
-    """Central configuration object for the Bot."""
+# Import all handlers and functions
+from bot.handlers.start import start_command
+from bot.handlers.course_advisor import advisor_conversation_handler
+from bot.handlers.project import project_conversation_handler
+from bot.handlers.assignment import assignment_conversation_handler
+from bot.handlers.tutor import tutor_conversation_handler
+from bot.handlers.admin import admin_handlers
+from bot.handlers.help import help_command
 
-    # === Telegram Bot Configuration ===
-    BOT_TOKEN = os.getenv('BOT_TOKEN')
-    ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID', 0))
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
-    # === Database Configuration ===
-    DATABASE_URL = os.getenv('DATABASE_URL')
+def main():
+    logger.info("Initializing database...")
+    try:
+        with app.app_context():
+            db.create_all()
+        logger.info("Database initialized successfully!")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        sys.exit(1)
 
-    # === External Service API Keys ===
-    GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+    logger.info("Building Telegram application...")
+    application = Application.builder().token(Config.BOT_TOKEN).build()
 
-    # === SQLAlchemy Configuration ===
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Register handlers
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(advisor_conversation_handler)
+    application.add_handler(project_conversation_handler)
+    application.add_handler(assignment_conversation_handler)
+    application.add_handler(tutor_conversation_handler)
+    for handler in admin_handlers:
+        application.add_handler(handler)
+    application.add_handler(CallbackQueryHandler(help_command, pattern="^MENU_HELP$"))
+    application.add_handler(CallbackQueryHandler(start_command, pattern="^BACK_TO_MENU$"))
 
-    @classmethod
-    def validate(cls):
-        """Validate that all required configuration is present."""
-        required_vars = [
-            'BOT_TOKEN',
-            'DATABASE_URL',
-            'GROQ_API_KEY',
-        ]
+    logger.info("All handlers registered successfully!")
+    logger.info("Starting Student AI Telegram Bot...")
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
-        for var in required_vars:
-            value = getattr(cls, var)
-            if not value:
-                raise ValueError(f"Missing required configuration: {var}")
-            print(f"✓ {var}: {'*' * 10}")
-
-# Validate configuration when imported
-try:
-    Config.validate()
-    print("✅ All configuration validated successfully!")
-except ValueError as e:
-    print(f"❌ Configuration Error: {e}")
-    import sys
-    sys.exit(1)
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user.")
+    except Exception as e:
+        logger.error(f"Bot crashed: {e}")
+        import traceback
+        traceback.print_exc()
