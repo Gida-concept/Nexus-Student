@@ -149,6 +149,7 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
+# Make sure this is properly exported
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(show_subscription_plans, pattern="^MENU_SUBSCRIBE$")],
     states={
@@ -160,5 +161,5 @@ payment_conversation_handler = ConversationHandler(
         CallbackQueryHandler(cancel_payment, pattern="^CANCEL_PAYMENT$")
     ],
     conversation_timeout=300,
-    allow_reentry=True  # Allow re-entry to this conversation
+    allow_reentry=True
 )
