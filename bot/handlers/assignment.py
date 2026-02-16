@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filt
 from bot.models import Assignment, User, db
 from bot import app
 from bot.services.perplexica_service import query_perplexica
+from bot.utils.message_utils import send_long_message # New Import
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,36 +15,53 @@ async def start_assignment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     context.user_data.clear()
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-    await query.edit_message_text("📄 **Assignment Helper**\n\nDescribe your assignment topic.", reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.edit_message_text(
+        "📄 **Assignment Helper**\n\nDescribe your assignment topic.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
     return ASSIGNMENT_TOPIC
 
 async def process_assignment_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = update.message.text.strip()
     status_msg = await update.message.reply_text("Analyzing...")
     prompt = f"Analyze the assignment topic '{topic}' and provide a detailed analysis, key points, and suggestions."
+    
     try:
         ai_response = await query_perplexica(prompt, focus_mode="academic")
+        
         with app.app_context():
             user = User.query.filter_by(telegram_id=update.effective_user.id).first()
             if not user:
                 await update.message.reply_text("Please /start the bot first.")
                 return ConversationHandler.END
+            
             assignment = Assignment(user_id=user.id, topic=topic, ai_response=ai_response)
             db.session.add(assignment)
             db.session.commit()
-        context.user_data['history'] = [{"role": "user", "content": f"Topic: {topic}"}, {"role": "assistant", "content": ai_response}]
+            
+        context.user_data['history'] = [
+            {"role": "user", "content": f"Assignment topic: {topic}"},
+            {"role": "assistant", "content": ai_response}
+        ]
+            
         await status_msg.delete()
+        
         keyboard = [
             [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
         ]
-        await update.message.reply_text(
-            f"**Analysis for '{topic}':**\n\n{ai_response[:1000]}...",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown'
+        
+        # FIX: Use the new utility to send the message
+        await send_long_message(
+            update,
+            context,
+            text=f"**Analysis for '{topic}':**\n\n{ai_response}",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return FOLLOW_UP
+        
     except Exception as e:
-        logger.error(f"Assignment failed: {e}")
+        logger.error(f"Assignment processing failed: {e}")
         await status_msg.delete()
         keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
         await update.message.reply_text("⚠️ An error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -62,6 +80,7 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
     history = context.user_data.get('history', [])
     history.append({"role": "user", "content": follow_up_question})
     prompt = f"Based on the previous analysis, answer this new question:\n\nCONTEXT:\n{history}\n\nNEW QUESTION:\n{follow_up_question}"
+    
     try:
         answer = await query_perplexica(prompt, focus_mode="academic")
         history.append({"role": "assistant", "content": answer})
@@ -71,7 +90,7 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("❓ Ask Another Follow-up", callback_data="ask_follow_up")],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
         ]
-        await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
+        await send_long_message(update, context, text=answer, reply_markup=InlineKeyboardMarkup(keyboard))
         return FOLLOW_UP
     except Exception as e:
         logger.error(f"Follow-up Error: {e}")
