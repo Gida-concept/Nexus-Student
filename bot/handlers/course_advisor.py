@@ -2,7 +2,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CommandHandler, CallbackQueryHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ async def start_advisor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
     await query.edit_message_text(
-        "🎓 **Course Advisor**\n\nPlease type the name of the course you are interested in (e.g., 'Medicine and Surgery').",
+        "🎓 **Course Advisor**\n\nPlease type the name of the course you are interested in.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return COURSE_NAME
@@ -30,10 +29,7 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     try:
         response_text = await query_perplexica(prompt, focus_mode="webSearch")
-        context.user_data['history'] = [
-            {"role": "user", "content": f"Admission requirements for {course_name}"},
-            {"role": "assistant", "content": response_text}
-        ]
+        context.user_data['history'] = [{"role": "user", "content": f"Requirements for {course_name}"}, {"role": "assistant", "content": response_text}]
         keyboard = [
             [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
@@ -63,7 +59,7 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_msg = await update.message.reply_text("Thinking...")
     history = context.user_data.get('history', [])
     history.append({"role": "user", "content": follow_up_question})
-    prompt = f"Based on the previous conversation context about university admissions, answer this follow-up question:\n\nCONTEXT:\n{history}\n\nNEW QUESTION:\n{follow_up_question}"
+    prompt = f"Based on the previous conversation, answer this follow-up question:\n\nCONTEXT:\n{history}\n\nNEW QUESTION:\n{follow_up_question}"
     try:
         answer = await query_perplexica(prompt, focus_mode="academic")
         history.append({"role": "assistant", "content": answer})
@@ -82,9 +78,13 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ An error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
 
-async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def universal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.message.reply_text("Session ended.")
+    if update.callback_query:
+        from .start import start_command
+        await start_command(update, context)
+    elif update.message:
+        await update.message.reply_text("Session cancelled.")
     return ConversationHandler.END
 
 advisor_conversation_handler = ConversationHandler(
@@ -96,5 +96,5 @@ advisor_conversation_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, process_follow_up)
         ],
     },
-    fallbacks=[CommandHandler('cancel', cancel_conversation), CallbackQueryHandler(cancel_conversation, pattern="^BACK_TO_MENU$")]
+    fallbacks=[CommandHandler('cancel', universal_cancel), CallbackQueryHandler(universal_cancel, pattern="^BACK_TO_MENU$")]
 )
