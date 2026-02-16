@@ -4,7 +4,6 @@ from .course_advisor import advisor_conversation_handler
 from .project import project_conversation_handler
 from .assignment import assignment_conversation_handler
 from .tutor import tutor_conversation_handler
-from .payment import payment_conversation_handler
 from .admin import admin_handlers
 
 def setup_handlers(application: Application):
@@ -17,7 +16,6 @@ def setup_handlers(application: Application):
     application.add_handler(project_conversation_handler)
     application.add_handler(assignment_conversation_handler)
     application.add_handler(tutor_conversation_handler)
-    application.add_handler(payment_conversation_handler)
 
     # Admin handlers
     for handler in admin_handlers:
