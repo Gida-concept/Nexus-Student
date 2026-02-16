@@ -9,10 +9,11 @@ import re
 
 logger = logging.getLogger(__name__)
 
-SELECTING_PLAN, WAITING_FOR_EMAIL = range(2)
+# Single state for email collection
+WAITING_FOR_EMAIL = 1
 
 async def show_subscription_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Displays available subscription plans as a response to a menu click."""
+    """Displays available subscription plans."""
     query = update.callback_query
     await query.answer()
     
@@ -34,11 +35,15 @@ async def show_subscription_plans(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text("No subscription plans are currently available. Please check back later.", reply_markup=reply_markup)
         return ConversationHandler.END
 
+    # Store all plans in context for easy access
+    context.user_data['available_plans'] = {plan.id: plan for plan in plans}
+    
+    # Show plans with direct selection
     keyboard = []
     for plan in plans:
         price_ngn = plan.price / 100
         label = f"{plan.name} - ₦{price_ngn:,.0f} ({plan.interval.title()})"
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"SELECTPLAN_{plan.id}")])
+        keyboard.append([InlineKeyboardButton(label, callback_data=f"PLAN_{plan.id}")])
     
     keyboard.append([InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -48,10 +53,10 @@ async def show_subscription_plans(update: Update, context: ContextTypes.DEFAULT_
         "Select a subscription plan to unlock all premium features.",
         reply_markup=reply_markup
     )
-    return SELECTING_PLAN
+    return WAITING_FOR_EMAIL
 
-async def start_plan_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Entry point for the conversation. Triggered when a user clicks a specific plan."""
+async def select_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle plan selection and ask for email."""
     query = update.callback_query
     await query.answer()
     
@@ -59,35 +64,34 @@ async def start_plan_selection(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
         
     plan_id = int(query.data.split("_")[1])
+    plans = context.user_data.get('available_plans', {})
+    plan = plans.get(plan_id)
+    
+    if not plan:
+        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("⚠️ Invalid plan selected. Please start over.", reply_markup=reply_markup)
+        return ConversationHandler.END
 
-    with app.app_context():
-        plan = PricingPlan.query.get(plan_id)
-        if not plan:
-            keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("⚠️ Invalid plan selected. Please start over.", reply_markup=reply_markup)
-            return ConversationHandler.END
-
-        # Store the plan in the context for the next step
-        context.user_data['selected_plan'] = plan
+    # Store selected plan
+    context.user_data['selected_plan'] = plan
 
     keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
         f"📧 **Email Required for {plan.name}**\n\n"
-        "To generate the payment link, please provide your email address. "
-        "This is where your payment receipt will be sent.",
+        "Please enter your email address where you want to receive the payment receipt:",
         reply_markup=reply_markup
     )
 
     return WAITING_FOR_EMAIL
 
 async def capture_email_and_generate_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Captures the user's email, validates it, and generates the Paystack link."""
+    """Captures the user's email and generates the Paystack link."""
     email = update.message.text.strip()
     
-    # Basic email validation regex
+    # Basic email validation
     if "@" not in email or "." not in email:
         await update.message.reply_text("❌ Please enter a valid email address (e.g., user@gmail.com).")
         return WAITING_FOR_EMAIL
@@ -103,7 +107,7 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
 
     await update.message.reply_text("⏳ Generating secure payment link...")
 
-    # Generate payment link using our pricing from database
+    # Generate payment link
     payment_url = get_payment_link(
         telegram_id=telegram_id,
         amount=plan.price,
@@ -129,7 +133,7 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("⚠️ Could not connect to the payment gateway. Please try again later.", reply_markup=reply_markup)
 
-    # Clear conversation data after successful payment link generation
+    # Clear conversation data
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -149,17 +153,18 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Make sure this is properly exported
+# Simplified conversation handler
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(show_subscription_plans, pattern="^MENU_SUBSCRIBE$")],
     states={
-        SELECTING_PLAN: [CallbackQueryHandler(start_plan_selection, pattern="^SELECTPLAN_|BACK_TO_MENU$")],
-        WAITING_FOR_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, capture_email_and_generate_link)],
+        WAITING_FOR_EMAIL: [
+            CallbackQueryHandler(select_plan, pattern="^PLAN_"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, capture_email_and_generate_link)
+        ],
     },
     fallbacks=[
         CommandHandler("cancel", cancel_payment),
-        CallbackQueryHandler(cancel_payment, pattern="^CANCEL_PAYMENT$")
+        CallbackQueryHandler(cancel_payment, pattern="^BACK_TO_MENU$")
     ],
-    conversation_timeout=300,
     allow_reentry=True
 )
