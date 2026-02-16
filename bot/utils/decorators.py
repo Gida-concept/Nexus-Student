@@ -10,7 +10,6 @@ def admin_required(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if update.effective_user.id != Config.ADMIN_USER_ID:
-            # Check if this is a callback query or message
             if update.callback_query:
                 await update.callback_query.answer()
                 await update.callback_query.edit_message_text("⛔ Access Denied. This command is for administrators only.")
@@ -26,7 +25,6 @@ def subscription_required(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         telegram_id = update.effective_user.id
         
-        # We need the Flask application context to perform DB operations
         with app.app_context():
             user = User.query.filter_by(telegram_id=telegram_id).first()
             
@@ -38,7 +36,6 @@ def subscription_required(func):
                     await update.message.reply_text("⚠️ Please use /start to initialize your account.")
                 return
 
-            # Check for active subscription using the helper property
             if not user.is_premium:
                 if update.callback_query:
                     await update.callback_query.answer()
