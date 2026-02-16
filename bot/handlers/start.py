@@ -5,8 +5,8 @@ from bot import app
 from bot.config import Config
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command and user initialization."""
-    context.user_data.clear()
+    """Handles the /start command and the 'Back to Menu' button."""
+    context.user_data.clear() # Clear state from any previous conversation
     
     user = update.effective_user
     telegram_id = user.id
@@ -40,13 +40,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_text = (
         f"Hello, {user.first_name}! 👋\n\n"
-        "I am your **Student AI Assistant**. I am a completely free tool to help you with research, "
-        "project writing, assignment solving, and course advice.\n\n"
-        "Choose an option below to get started:"
+        "I am your Student AI Assistant, a free tool to help you with research, "
+        "writing, and course advice.\n\nChoose an option to begin:"
     )
 
     if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
     else:
         await update.message.reply_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
