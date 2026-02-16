@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    """Central configuration object for both the Bot and Webhook App."""
+    """Central configuration object for the Bot."""
 
     # === Telegram Bot Configuration ===
     BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -15,16 +15,9 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL')
 
     # === External Service API Keys ===
-    GROQ_API_KEY = os.getenv('GROQ_API_KEY')  # Only Groq now
-    PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
-    PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
-    CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
-    # Removed GEMINI_API_KEY since we're not using it
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
-    # === Application Feature Flags ===
-    ENABLE_PAYMENTS = os.getenv('ENABLE_PAYMENTS', 'false').lower() == 'true'
-
-    # === SQLAlchemy Configuration (Shared) ===
+    # === SQLAlchemy Configuration ===
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -34,17 +27,14 @@ class Config:
         required_vars = [
             'BOT_TOKEN',
             'DATABASE_URL',
-            'GROQ_API_KEY',  # Updated to only require Groq
-            'PAYSTACK_SECRET_KEY',
-            'PAYSTACK_PUBLIC_KEY',
-            'CLOUDINARY_URL'
+            'GROQ_API_KEY',
         ]
 
         for var in required_vars:
             value = getattr(cls, var)
             if not value:
                 raise ValueError(f"Missing required configuration: {var}")
-            print(f"✓ {var}: {'*' * 10}")  # Show vars are loaded (masked)
+            print(f"✓ {var}: {'*' * 10}")
 
 # Validate configuration when imported
 try:
