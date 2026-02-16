@@ -2,49 +2,90 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
 import logging
-import re
 
 logger = logging.getLogger(__name__)
 
-TUTOR_QUESTION = 1
+TUTOR_QUESTION, FOLLOW_UP = range(2)
 
 async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Entry point for the Mini Tutor feature."""
     query = update.callback_query
     await query.answer()
     context.user_data.clear()
-    await query.edit_message_text("🧠 **Mini Tutor**\n\nAsk me any academic question.")
+    keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
+    await query.edit_message_text(
+        "🧠 **Mini Tutor**\n\nAsk me any academic question. I will provide a detailed explanation.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
     return TUTOR_QUESTION
 
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the user's question and get an AI response."""
     question = update.message.text.strip()
     status_msg = await update.message.reply_text("Thinking...")
-    
     prompt = f"As an expert academic tutor, answer this student's question clearly and concisely: {question}"
-    
     try:
         answer = await query_perplexica(prompt, focus_mode="academic")
+        context.user_data['history'] = [
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": answer}
+        ]
+        await status_msg.delete()
+        keyboard = [
+            [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
+        ]
+        await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
+        return FOLLOW_UP
+    except Exception as e:
+        logger.error(f"Tutor failed: {e}")
         await status_msg.delete()
         keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-        await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
-    except Exception as e:
-        logger.error(f"Tutor feature failed: {e}")
+        await update.message.reply_text("Sorry, an error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
+
+async def ask_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
+    await query.edit_message_text("What is your follow-up question?", reply_markup=InlineKeyboardMarkup(keyboard))
+    return FOLLOW_UP
+
+async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    follow_up_question = update.message.text.strip()
+    status_msg = await update.message.reply_text("Thinking about your follow-up...")
+    history = context.user_data.get('history', [])
+    history.append({"role": "user", "content": follow_up_question})
+    prompt = f"Based on the previous conversation, answer the new follow-up question.\n\nCONTEXT:\n{history}\n\nNEW QUESTION:\n{follow_up_question}"
+    try:
+        answer = await query_perplexica(prompt, focus_mode="academic")
+        history.append({"role": "assistant", "content": answer})
+        context.user_data['history'] = history
         await status_msg.delete()
-        await update.message.reply_text("Sorry, I couldn't process your request right now.")
-        
-    return ConversationHandler.END
+        keyboard = [
+            [InlineKeyboardButton("❓ Ask Another Follow-up", callback_data="ask_follow_up")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
+        ]
+        await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
+        return FOLLOW_UP
+    except Exception as e:
+        logger.error(f"Tutor follow-up failed: {e}")
+        await status_msg.delete()
+        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
+        await update.message.reply_text("Sorry, an error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
 
 async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancels the tutor conversation."""
-    await update.message.reply_text("Tutor session cancelled.")
     context.user_data.clear()
+    await update.message.reply_text("Tutor session ended.")
     return ConversationHandler.END
 
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
         TUTOR_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_tutor_question)],
+        FOLLOW_UP: [
+            CallbackQueryHandler(ask_follow_up, pattern="^ask_follow_up$"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, process_follow_up)
+        ],
     },
-    fallbacks=[CommandHandler('cancel', cancel_tutor)]
+    fallbacks=[CommandHandler('cancel', cancel_tutor), CallbackQueryHandler(cancel_tutor, pattern="^BACK_TO_MENU$")]
 )
