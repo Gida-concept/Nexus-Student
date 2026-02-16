@@ -13,7 +13,6 @@ from bot.handlers.course_advisor import advisor_conversation_handler
 from bot.handlers.project import project_conversation_handler
 from bot.handlers.assignment import assignment_conversation_handler
 from bot.handlers.tutor import tutor_conversation_handler
-from bot.handlers.payment import payment_conversation_handler
 from bot.handlers.admin import admin_handlers
 from bot.handlers.help import help_command
 
@@ -26,7 +25,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
-    """Main function to start the Telegram bot."""
     logger.info("Initializing database...")
     try:
         with app.app_context():
@@ -39,30 +37,19 @@ def main():
     logger.info("Building Telegram application...")
     application = Application.builder().token(Config.BOT_TOKEN).build()
 
-    # Register command handlers
+    # Register handlers
     application.add_handler(CommandHandler("start", start_command))
-
-    # Register conversation handlers
     application.add_handler(advisor_conversation_handler)
     application.add_handler(project_conversation_handler)
     application.add_handler(assignment_conversation_handler)
     application.add_handler(tutor_conversation_handler)
-    application.add_handler(payment_conversation_handler)
-
-    # Register admin handlers
     for handler in admin_handlers:
         application.add_handler(handler)
-
-    # Register handlers for simple menu buttons
     application.add_handler(CallbackQueryHandler(help_command, pattern="^MENU_HELP$"))
-    
-    # Handler to go back to the main menu from other screens
     application.add_handler(CallbackQueryHandler(start_command, pattern="^BACK_TO_MENU$"))
 
     logger.info("All handlers registered successfully!")
     logger.info("Starting Student AI Telegram Bot...")
-    logger.info("Bot is now running. Press Ctrl+C to stop.")
-    
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
