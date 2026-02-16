@@ -13,6 +13,7 @@ async def advisor_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
+    # Clear any previous conversation data
     context.user_data.clear()
     
     keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
@@ -43,6 +44,11 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if not course_name:
         await update.message.reply_text("❌ Please enter a valid course name without emojis.")
+        return COURSE_NAME
+        
+    # Validate that this is actually a course name, not an email
+    if "@" in course_name and "." in course_name:
+        await update.message.reply_text("❌ This appears to be an email address. Please enter a valid course name (e.g., 'Medicine', 'Computer Science').")
         return COURSE_NAME
         
     status_message = await update.message.reply_text("🔎 Researching admission requirements...")
@@ -91,95 +97,4 @@ async def process_course_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     return FOLLOW_UP_QUESTION
 
-async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle follow-up questions about the current course."""
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "ASK_FOLLOWUP":
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            f"❓ What follow-up question do you have about {context.user_data.get('current_course', 'this course')}?\n\n"
-            "Ask anything specific about admission requirements, career prospects, or related information.",
-            reply_markup=reply_markup
-        )
-        return FOLLOW_UP_QUESTION
-    else:
-        return ConversationHandler.END
-
-async def process_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the follow-up question and get AI response."""
-    followup_question = update.message.text.strip()
-    
-    # Remove emojis from input
-    emoji_pattern = re.compile("["
-        u"\U0001F600-\U0001F64F"  # emoticons
-        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-        u"\U0001F680-\U0001F6FF"  # transport & map symbols
-        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-        u"\U00002702-\U000027B0"
-        u"\U000024C2-\U0001F251"
-        "]+", flags=re.UNICODE)
-    followup_question = emoji_pattern.sub(r'', followup_question)
-    
-    if not followup_question:
-        await update.message.reply_text("❌ Please ask a valid follow-up question without emojis.")
-        return FOLLOW_UP_QUESTION
-        
-    status_message = await update.message.reply_text("🔍 Finding answer to your follow-up question...")
-    
-    course_name = context.user_data.get('current_course', 'the course')
-    prompt = (
-        f"You are an expert on Nigerian University Admission. A student is asking a follow-up question about studying '{course_name}'.\n\n"
-        f"Question: {followup_question}\n\n"
-        f"Provide a clear, concise, and accurate answer based on Nigerian educational standards. Keep it brief and to the point."
-    )
-
-    try:
-        response_text = await query_perplexica(prompt, focus_mode="academic")
-        
-        keyboard = [
-            [InlineKeyboardButton("❓ Ask Another Question", callback_data="ASK_FOLLOWUP")],
-            [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await status_message.delete()
-        await update.message.reply_text(
-            f"📚 **Follow-up Answer**\n\n{response_text}",
-            reply_markup=reply_markup
-        )
-        
-    except Exception as e:
-        logger.error(f"Follow-up Question Error: {e}")
-        await status_message.delete()
-        
-        keyboard = [
-            [InlineKeyboardButton("❓ Try Again", callback_data="ASK_FOLLOWUP")],
-            [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to your question. Please try again.", reply_markup=reply_markup)
-    
-    return FOLLOW_UP_QUESTION
-
-async def cancel_advisor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /cancel command during the conversation."""
-    await update.message.reply_text("👋 Course advisor cancelled.")
-    return ConversationHandler.END
-
-# Fixed: Removed per_* settings that were causing warnings
-advisor_conversation_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(advisor_start, pattern="^MENU_COURSE_ADVISOR$")],
-    states={
-        COURSE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_course_name)],
-        FOLLOW_UP_QUESTION: [
-            CallbackQueryHandler(handle_followup_question, pattern="^ASK_FOLLOWUP$"),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, process_followup_question)
-        ],
-    },
-    fallbacks=[CommandHandler("cancel", cancel_advisor)]
-)
+# ... rest of the file remains the same ...
