@@ -10,7 +10,12 @@ def admin_required(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if update.effective_user.id != Config.ADMIN_USER_ID:
-            await update.message.reply_text("⛔ Access Denied. This command is for administrators only.")
+            # Check if this is a callback query or message
+            if update.callback_query:
+                await update.callback_query.answer()
+                await update.callback_query.edit_message_text("⛔ Access Denied. This command is for administrators only.")
+            else:
+                await update.message.reply_text("⛔ Access Denied. This command is for administrators only.")
             return
         return await func(update, context, *args, **kwargs)
     return wrapper
@@ -26,16 +31,28 @@ def subscription_required(func):
             user = User.query.filter_by(telegram_id=telegram_id).first()
             
             if not user:
-                await update.message.reply_text("⚠️ Please use /start to initialize your account.")
+                if update.callback_query:
+                    await update.callback_query.answer()
+                    await update.callback_query.edit_message_text("⚠️ Please use /start to initialize your account.")
+                else:
+                    await update.message.reply_text("⚠️ Please use /start to initialize your account.")
                 return
 
             # Check for active subscription using the helper property
             if not user.is_premium:
-                await update.message.reply_text(
-                    "🔒 **Premium Feature**\n\n"
-                    "You need an active subscription to use this command.\n"
-                    "Tap /subscribe to upgrade your plan."
-                )
+                if update.callback_query:
+                    await update.callback_query.answer()
+                    await update.callback_query.edit_message_text(
+                        "🔒 **Premium Feature**\n\n"
+                        "You need an active subscription to use this command.\n"
+                        "Tap /subscribe to upgrade your plan."
+                    )
+                else:
+                    await update.message.reply_text(
+                        "🔒 **Premium Feature**\n\n"
+                        "You need an active subscription to use this command.\n"
+                        "Tap /subscribe to upgrade your plan."
+                    )
                 return
         
         return await func(update, context, *args, **kwargs)
@@ -46,7 +63,11 @@ def payment_maintenance_check(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if not Config.ENABLE_PAYMENTS:
-            await update.message.reply_text("⚠️ The payment system is currently disabled for maintenance.")
+            if update.callback_query:
+                await update.callback_query.answer()
+                await update.callback_query.edit_message_text("⚠️ The payment system is currently disabled for maintenance.")
+            else:
+                await update.message.reply_text("⚠️ The payment system is currently disabled for maintenance.")
             return
         return await func(update, context, *args, **kwargs)
     return wrapper
