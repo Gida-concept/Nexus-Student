@@ -20,14 +20,16 @@ async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = update.message.text.strip()
-    status_msg = await update.message.reply_text("Thinking...")
+    status_msg = await update.message.reply_text("🤔 Thinking...")
     prompt = f"As an expert academic tutor, answer this student's question clearly and concisely: {question}"
+    
     try:
         answer = await query_perplexica(prompt, focus_mode="academic")
         context.user_data['history'] = [
             {"role": "user", "content": question},
             {"role": "assistant", "content": answer}
         ]
+        
         await status_msg.delete()
         keyboard = [
             [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
@@ -35,6 +37,7 @@ async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_T
         ]
         await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
         return FOLLOW_UP
+
     except Exception as e:
         logger.error(f"Tutor failed: {e}")
         await status_msg.delete()
@@ -52,13 +55,21 @@ async def ask_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
     follow_up_question = update.message.text.strip()
     status_msg = await update.message.reply_text("Thinking about your follow-up...")
+    
     history = context.user_data.get('history', [])
     history.append({"role": "user", "content": follow_up_question})
-    prompt = f"Based on the previous conversation, answer the new follow-up question.\n\nCONTEXT:\n{history}\n\nNEW QUESTION:\n{follow_up_question}"
+    
+    # Construct a prompt that includes the history
+    prompt_with_history = "Continue the conversation based on the history provided.\n\n"
+    for message in history:
+        prompt_with_history += f"{message['role'].title()}: {message['content']}\n"
+    prompt_with_history += "Assistant:"
+
     try:
-        answer = await query_perplexica(prompt, focus_mode="academic")
+        answer = await query_perplexica(prompt_with_history, focus_mode="academic")
         history.append({"role": "assistant", "content": answer})
         context.user_data['history'] = history
+
         await status_msg.delete()
         keyboard = [
             [InlineKeyboardButton("❓ Ask Another Follow-up", callback_data="ask_follow_up")],
@@ -66,6 +77,7 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await update.message.reply_text(answer, reply_markup=InlineKeyboardMarkup(keyboard))
         return FOLLOW_UP
+
     except Exception as e:
         logger.error(f"Tutor follow-up failed: {e}")
         await status_msg.delete()
@@ -73,9 +85,13 @@ async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Sorry, an error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
 
-async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def universal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.message.reply_text("Tutor session ended.")
+    if update.callback_query:
+        from .start import start_command # Local import to avoid circular dependency
+        await start_command(update, context)
+    elif update.message:
+        await update.message.reply_text("Session cancelled.")
     return ConversationHandler.END
 
 tutor_conversation_handler = ConversationHandler(
@@ -87,5 +103,5 @@ tutor_conversation_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, process_follow_up)
         ],
     },
-    fallbacks=[CommandHandler('cancel', cancel_tutor), CallbackQueryHandler(cancel_tutor, pattern="^BACK_TO_MENU$")]
+    fallbacks=[CommandHandler('cancel', universal_cancel), CallbackQueryHandler(universal_cancel, pattern="^BACK_TO_MENU$")]
 )
