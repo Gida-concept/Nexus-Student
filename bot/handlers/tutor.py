@@ -1,7 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
-from bot.utils.decorators import subscription_required
 import logging
 import re
 
@@ -9,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 TUTOR_QUESTION, FOLLOW_UP_QUESTION = range(2)
 
-@subscription_required
 async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point for the Mini Tutor feature."""
     query = update.callback_query
@@ -29,20 +27,17 @@ async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return TUTOR_QUESTION
 
-@subscription_required
 async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the user's question and get an AI response."""
     question = update.message.text.strip()
     
     # Remove emojis from input
-    emoji_pattern = re.compile("["
-        u"\U0001F600-\U0001F64F"  # emoticons
-        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-        u"\U0001F680-\U0001F6FF"  # transport & map symbols
-        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-        u"\U00002702-\U000027B0"
-        u"\U000024C2-\U0001F251"
-        "]+", flags=re.UNICODE)
+    emoji_pattern = re.compile(
+        "["
+        u"\U0001F600-\U0001F64F" u"\U0001F300-\U0001F5FF" u"\U0001F680-\U0001F6FF"
+        u"\U0001F1E0-\U0001F1FF" u"\U00002702-\U000027B0" u"\U000024C2-\U0001F251"
+        "]+", flags=re.UNICODE
+    )
     question = emoji_pattern.sub(r'', question)
     
     if not question:
@@ -75,47 +70,34 @@ async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_T
     except Exception as e:
         logger.error(f"Tutor question failed: {e}")
         await status_msg.delete()
-        
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to that question. Please try again.", reply_markup=reply_markup)
+        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to that question. Please try again.")
         return TUTOR_QUESTION
 
-@subscription_required
 async def handle_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle follow-up questions."""
     query = update.callback_query
     await query.answer()
     
     if query.data == "ASK_FOLLOWUP":
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
         original_question = context.user_data.get('original_question', 'your previous question')
         await query.edit_message_text(
             f"❓ What follow-up question do you have about '{original_question}'?\n\n"
-            "Ask anything specific you'd like to know more about.",
-            reply_markup=reply_markup
+            "Ask anything specific you'd like to know more about."
         )
         return FOLLOW_UP_QUESTION
     else:
         return ConversationHandler.END
 
-@subscription_required
 async def process_followup_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the follow-up question and get AI response."""
     followup_question = update.message.text.strip()
     
-    # Remove emojis from input
-    emoji_pattern = re.compile("["
-        u"\U0001F600-\U0001F64F"  # emoticons
-        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-        u"\U0001F680-\U0001F6FF"  # transport & map symbols
-        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-        u"\U00002702-\U000027B0"
-        u"\U000024C2-\U0001F251"
-        "]+", flags=re.UNICODE)
+    emoji_pattern = re.compile(
+        "["
+        u"\U0001F600-\U0001F64F" u"\U0001F300-\U0001F5FF" u"\U0001F680-\U0001F6FF"
+        u"\U0001F1E0-\U0001F1FF" u"\U00002702-\U000027B0" u"\U000024C2-\U0001F251"
+        "]+", flags=re.UNICODE
+    )
     followup_question = emoji_pattern.sub(r'', followup_question)
     
     if not followup_question:
@@ -149,33 +131,16 @@ async def process_followup_question(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"Follow-up Question Error: {e}")
         await status_msg.delete()
-        
-        keyboard = [
-            [InlineKeyboardButton("❓ Try Again", callback_data="ASK_FOLLOWUP")],
-            [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to your question. Please try again.", reply_markup=reply_markup)
+        await update.message.reply_text("⚠️ Sorry, I couldn't find an answer to your question. Please try again.")
     
     return FOLLOW_UP_QUESTION
 
 async def cancel_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the tutor conversation."""
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        
-        keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text("Tutor session ended.", reply_markup=reply_markup)
-    else:
-        await update.message.reply_text("Tutor session ended.")
-        
+    await update.message.reply_text("Tutor session ended.")
+    context.user_data.clear()
     return ConversationHandler.END
 
-# Fixed: Removed per_* settings that were causing warnings
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
