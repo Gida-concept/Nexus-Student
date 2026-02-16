@@ -2,16 +2,10 @@
 python-telegram-bot>=20.0
 Flask
 Flask-SQLAlchemy
-Flask-Migrate
-Flask-Login
-Flask-WTF
-python-dotenv
 psycopg2-binary
+python-dotenv
 requests
 gunicorn
-paystackapi
-cloudinary
-PyMuPDF
 
 # AI Services
-groq>=0.8.0  # Only Groq now, removed google-generativeai
+groq
