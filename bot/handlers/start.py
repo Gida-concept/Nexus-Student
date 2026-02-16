@@ -40,7 +40,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_text = (
         f"Hello, {user.first_name}! 👋\n\n"
-        "I am your Student AI Assistant, a free tool to help you with research, "
+        "I am your Student Companion , a free tool to help you with research, "
         "writing, and course advice.\n\nChoose an option to begin:"
     )
 
@@ -50,3 +50,4 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
     else:
         await update.message.reply_text(text=welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
+
