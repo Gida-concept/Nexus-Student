@@ -1,30 +1,26 @@
-from bot import app as bot_app
-from bot.models import User, PricingPlan, Subscription, Project, ProjectChapter, Assignment, CourseRequirement
-from bot.models import db
+from bot import app
+from bot.models import User, Project, ProjectChapter, Assignment, CourseRequirement, db
+import logging
+
+# Configure basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def init_database():
-    with bot_app.app_context():
-        # Create all tables
-        db.create_all()
-        
-        # Add default monthly pricing plan (only one plan)
-        if not PricingPlan.query.first():
-            monthly_plan = PricingPlan(
-                name="Monthly Premium",
-                price=50000,  # ₦500 in kobo
-                interval="monthly",
-                paystack_plan_code="PLN_monthly",
-                description="Access to all premium features"
-            )
-            db.session.add(monthly_plan)
-            try:
-                db.session.commit()
-                print("Default monthly pricing plan added successfully!")
-            except Exception as e:
-                db.session.rollback()
-                print(f"Error adding default plan: {e}")
-            
-        print("Database initialized successfully!")
+    """
+    Creates all database tables based on the current models.
+    This script is safe to run multiple times; it will not duplicate tables.
+    """
+    try:
+        with app.app_context():
+            logger.info("Creating all database tables...")
+            db.create_all()
+            logger.info("✅ Database tables created successfully (or already exist).")
+    except Exception as e:
+        logger.error(f"❌ An error occurred during database initialization: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
+    logger.info("Starting database initialization script...")
     init_database()
