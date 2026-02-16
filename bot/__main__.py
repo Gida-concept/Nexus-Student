@@ -1,7 +1,9 @@
 import logging
 import sys
+import os
+from pathlib import Path
 from telegram import Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, PicklePersistence
 
 from bot.config import Config
 from bot import app
@@ -24,6 +26,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Define the path for the persistence file
+PERSISTENCE_FILE = Path(__file__).parent.parent / "conversation_persistence.pkl"
+
 def main():
     logger.info("Initializing database...")
     try:
@@ -36,8 +41,17 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
-    logger.info("Building Telegram application...")
-    application = Application.builder().token(Config.BOT_TOKEN).build()
+    logger.info("Building Telegram application with persistence...")
+    
+    # Create the persistence object
+    persistence = PicklePersistence(filepath=PERSISTENCE_FILE)
+    
+    application = (
+        Application.builder()
+        .token(Config.BOT_TOKEN)
+        .persistence(persistence)
+        .build()
+    )
 
     # --- Handler Registration ---
     application.add_handler(CommandHandler("start", start_command))
