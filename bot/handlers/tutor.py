@@ -1,82 +1,77 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 from bot.services.perplexica_service import query_perplexica
+from bot.utils.message_utils import send_long_message # New Import
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Define conversation states for the new tutor flow
-SUBJECT, LEVEL_ASSESSMENT, ROADMAP, TEACHING, MASTERY_CHECK = range(5)
+TUTOR_QUESTION, FOLLOW_UP = range(2)
 
 async def start_tutor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     context.user_data.clear()
-    
-    # Initialize the conversation history with the system prompt context
-    context.user_data['history'] = []
-    
     keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
     await query.edit_message_text(
-        "🧠 **Welcome to the AI Tutor!**\n\nI can teach you any subject, from the basics to advanced topics. What subject would you like to learn today?",
+        "🧠 **Mini Tutor**\n\nAsk me any academic question. I will provide a detailed explanation.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    return SUBJECT
+    return TUTOR_QUESTION
 
-async def get_subject(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    subject = update.message.text.strip()
-    context.user_data['subject'] = subject
-    
-    # First interaction with the AI to start the structured teaching
-    status_msg = await update.message.reply_text("OK. Let's create a learning plan for you...")
-    
-    # The user's message is the first "user" turn in the conversation
-    history = context.user_data.get('history', [])
-    history.append({"role": "user", "content": f"I want to learn {subject}."})
+async def process_tutor_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    question = update.message.text.strip()
+    status_msg = await update.message.reply_text("🤔 Thinking...")
+    prompt = f"As an expert academic tutor, answer this student's question clearly and concisely: {question}"
     
     try:
-        # The AI's first response should be the level assessment questions
-        ai_response = await query_perplexica("", focus_mode="tutor", history=history)
-        history.append({"role": "assistant", "content": ai_response})
-        context.user_data['history'] = history
+        answer = await query_perplexica(prompt, focus_mode="tutor", history=[])
+        context.user_data['history'] = [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
         
         await status_msg.delete()
-        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-        await update.message.reply_text(ai_response, reply_markup=InlineKeyboardMarkup(keyboard))
-        
-        # The next state will handle the student's answers to the assessment
-        return LEVEL_ASSESSMENT
-        
+        keyboard = [
+            [InlineKeyboardButton("❓ Ask a Follow-up", callback_data="ask_follow_up")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
+        ]
+        await send_long_message(update, context, text=answer, reply_markup=InlineKeyboardMarkup(keyboard))
+        return FOLLOW_UP
+
     except Exception as e:
-        logger.error(f"Tutor start failed: {e}")
+        logger.error(f"Tutor failed: {e}")
+        await status_msg.delete()
         keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-        await status_msg.edit_text("Sorry, an error occurred. Please try again.", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("Sorry, an error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
 
-async def process_student_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    student_response = update.message.text.strip()
-    status_msg = await update.message.reply_text("Got it. Generating the next step...")
+async def ask_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
+    await query.edit_message_text("What is your follow-up question?", reply_markup=InlineKeyboardMarkup(keyboard))
+    return FOLLOW_UP
 
+async def process_follow_up(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    follow_up_question = update.message.text.strip()
+    status_msg = await update.message.reply_text("Thinking about your follow-up...")
+    
     history = context.user_data.get('history', [])
-    history.append({"role": "user", "content": student_response})
     
     try:
-        ai_response = await query_perplexica("", focus_mode="tutor", history=history)
-        history.append({"role": "assistant", "content": ai_response})
+        answer = await query_perplexica(follow_up_question, focus_mode="tutor", history=history)
+        history.append({"role": "user", "content": follow_up_question})
+        history.append({"role": "assistant", "content": answer})
         context.user_data['history'] = history
 
         await status_msg.delete()
-        
-        # We need a way to offer choices, but for now, we'll just show the text.
-        # In a more advanced version, we'd parse the AI response for options.
-        keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
-        await update.message.reply_text(ai_response, reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard = [
+            [InlineKeyboardButton("❓ Ask Another Follow-up", callback_data="ask_follow_up")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]
+        ]
+        await send_long_message(update, context, text=answer, reply_markup=InlineKeyboardMarkup(keyboard))
+        return FOLLOW_UP
 
-        # Stay in the teaching state to continue the conversation
-        return LEVEL_ASSESSMENT
-        
     except Exception as e:
-        logger.error(f"Tutor conversation failed: {e}")
+        logger.error(f"Tutor follow-up failed: {e}")
         await status_msg.delete()
         keyboard = [[InlineKeyboardButton("🔙 Back to Menu", callback_data="BACK_TO_MENU")]]
         await update.message.reply_text("Sorry, an error occurred.", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -88,16 +83,17 @@ async def universal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from .start import start_command
         await start_command(update, context)
     elif update.message:
-        await update.message.reply_text("Session ended.")
+        await update.message.reply_text("Session cancelled.")
     return ConversationHandler.END
 
 tutor_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_tutor, pattern="^MENU_TUTOR$")],
     states={
-        SUBJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_subject)],
-        LEVEL_ASSESSMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_student_response)],
-        # ROADMAP, TEACHING, etc. would be handled by the same function,
-        # as the AI's prompt guides the conversation flow.
+        TUTOR_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_tutor_question)],
+        FOLLOW_UP: [
+            CallbackQueryHandler(ask_follow_up, pattern="^ask_follow_up$"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, process_follow_up)
+        ],
     },
     fallbacks=[CommandHandler('cancel', universal_cancel), CallbackQueryHandler(universal_cancel, pattern="^BACK_TO_MENU$")]
 )
