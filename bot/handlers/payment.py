@@ -16,6 +16,9 @@ async def show_subscription_plans(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
     
+    # Clear any previous conversation data
+    context.user_data.clear()
+    
     if not Config.ENABLE_PAYMENTS:
         keyboard = [[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="BACK_TO_MENU")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -116,7 +119,7 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            "✅ **Link Ready!**\n\n"
+            "✅ **Payment Link Ready!**\n\n"
             "Click the button below to complete your payment on Paystack's secure page. "
             "Your access will be upgraded automatically once the payment is confirmed.",
             reply_markup=reply_markup
@@ -126,6 +129,8 @@ async def capture_email_and_generate_link(update: Update, context: ContextTypes.
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("⚠️ Could not connect to the payment gateway. Please try again later.", reply_markup=reply_markup)
 
+    # Clear conversation data after successful payment link generation
+    context.user_data.clear()
     return ConversationHandler.END
 
 async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,7 +149,6 @@ async def cancel_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ConversationHandler.END
 
-# Fixed: Make sure this is properly exported
 payment_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(show_subscription_plans, pattern="^MENU_SUBSCRIBE$")],
     states={
@@ -155,5 +159,6 @@ payment_conversation_handler = ConversationHandler(
         CommandHandler("cancel", cancel_payment),
         CallbackQueryHandler(cancel_payment, pattern="^CANCEL_PAYMENT$")
     ],
-    conversation_timeout=300
+    conversation_timeout=300,
+    allow_reentry=True  # Allow re-entry to this conversation
 )
